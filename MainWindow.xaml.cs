@@ -17,7 +17,8 @@ public partial class MainWindow : Window
 {
     private readonly FachService _fachService = new();
     private readonly FachDataAccess _fachDataAccess = new();   // nur noch für Beispieldaten, entfällt mit StartService
-    private readonly DokumentDataAccess _dokumentDataAccess = new();
+    private readonly DokumentService _dokumentService = new();
+    private readonly DokumentDataAccess _dokumentDataAccess = new();   // nur noch für Beispieldaten, entfällt mit StartService
 
     public MainWindow()
     {
@@ -148,12 +149,12 @@ public partial class MainWindow : Window
             return;
         }
 
-        List<Dokument> dokumente = _dokumentDataAccess.GetByFach(fach.Id);
+        List<Dokument> dokumente = _dokumentService.GetByFach(fach.Id);
 
         GrdDokumente.ItemsSource = dokumente;
         BtnDokumentHinzufuegen.IsEnabled = true;
 
-        var offen = dokumente.Count(d => !d.Abgegeben);
+        int offen = _dokumentService.ZaehleOffene(dokumente);
         TxtFachUntertitel.Text = string.IsNullOrWhiteSpace(fach.Lehrperson)
             ? fach.Name
             : $"{fach.Name} · {fach.Lehrperson}";
@@ -170,27 +171,15 @@ public partial class MainWindow : Window
         }
 
         var titel = TxtDokTitel.Text.Trim();
-        if (titel.Length == 0)
-        {
-            Hinweis("Gib einen Titel für das Dokument ein.");
-            TxtDokTitel.Focus();
-            return;
-        }
 
         try
         {
-            var dokument = new Dokument
-            {
-                Titel = titel,
-                Typ = (CmbTyp.SelectedItem as ComboBoxItem)?.Content?.ToString() ?? "Auftrag",
-                Dateipfad = TxtDateipfad.Text.Trim(),
-                // Frist als "yyyy-MM-dd" speichern – dadurch sortiert SQL korrekt.
-                Frist = DpFrist.SelectedDate?.ToString("yyyy-MM-dd"),
-                Abgegeben = false,
-                FachId = fach.Id
-            };
-
-            _dokumentDataAccess.Add(dokument);
+            Dokument dokument = _dokumentService.Hinzufuegen(
+                titel,
+                (CmbTyp.SelectedItem as ComboBoxItem)?.Content?.ToString(),
+                TxtDateipfad.Text,
+                DpFrist.SelectedDate,
+                fach.Id);
 
             TxtDokTitel.Clear();
             TxtDateipfad.Clear();
@@ -202,6 +191,11 @@ public partial class MainWindow : Window
             Status(dokument.HatFrist
                 ? $"\"{titel}\" abgelegt, Frist {dokument.FristAnzeige}."
                 : $"\"{titel}\" abgelegt.");
+        }
+        catch (ValidierungsException ex)
+        {
+            Hinweis(ex.Message);
+            TxtDokTitel.Focus();
         }
         catch (Exception ex)
         {
@@ -241,8 +235,7 @@ public partial class MainWindow : Window
 
         try
         {
-            bool neuerStatus = !dokument.Abgegeben;
-            _dokumentDataAccess.SetAbgegeben(dokument.Id, neuerStatus);
+            bool neuerStatus = _dokumentService.AbgabeUmschalten(dokument);
 
             LadeDokumente(LstFaecher.SelectedItem as Fach);
             LadeFristen();
@@ -267,7 +260,7 @@ public partial class MainWindow : Window
 
         try
         {
-            _dokumentDataAccess.Delete(dokument.Id);
+            _dokumentService.Loeschen(dokument.Id);
             LadeFaecher((LstFaecher.SelectedItem as Fach)?.Id ?? 0);
             LadeFristen();
             Status($"\"{dokument.Titel}\" gelöscht.");
@@ -282,13 +275,13 @@ public partial class MainWindow : Window
 
     private void LadeFristen()
     {
-        List<Dokument> fristen = _dokumentDataAccess.GetOffeneFristen();
+        List<Dokument> fristen = _dokumentService.GetOffeneFristen();
 
         LstFristen.ItemsSource = fristen;
         TxtFristenAnzahl.Text = fristen.Count == 1 ? "1 offen" : $"{fristen.Count} offen";
         TxtKeineFristen.Visibility = fristen.Count == 0 ? Visibility.Visible : Visibility.Collapsed;
 
-        int ueberfaellig = fristen.Count(f => f.IstUeberfaellig);
+        int ueberfaellig = _dokumentService.ZaehleUeberfaellige(fristen);
         TxtUeberfaellig.Text = ueberfaellig == 1 ? "1 überfällig" : $"{ueberfaellig} überfällig";
         BdrUeberfaellig.Visibility = ueberfaellig > 0 ? Visibility.Visible : Visibility.Collapsed;
     }
@@ -300,7 +293,7 @@ public partial class MainWindow : Window
 
         try
         {
-            _dokumentDataAccess.SetAbgegeben(dokument.Id, true);
+            _dokumentService.MarkiereAlsAbgegeben(dokument.Id);
             LadeDokumente(LstFaecher.SelectedItem as Fach);
             LadeFristen();
             Status($"\"{dokument.Titel}\" ist abgegeben.");
