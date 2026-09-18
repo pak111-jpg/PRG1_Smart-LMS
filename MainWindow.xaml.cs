@@ -4,6 +4,7 @@ using System.Windows.Input;
 using Microsoft.Win32;
 using SchulApp.DataAccess;
 using SchulApp.Models;
+using SchulApp.Services;
 
 namespace SchulApp;
 
@@ -14,7 +15,8 @@ namespace SchulApp;
 /// </summary>
 public partial class MainWindow : Window
 {
-    private readonly FachDataAccess _fachDataAccess = new();
+    private readonly FachService _fachService = new();
+    private readonly FachDataAccess _fachDataAccess = new();   // nur noch für Beispieldaten, entfällt mit StartService
     private readonly DokumentDataAccess _dokumentDataAccess = new();
 
     public MainWindow()
@@ -51,7 +53,7 @@ public partial class MainWindow : Window
             ? auswaehlenId
             : (LstFaecher.SelectedItem as Fach)?.Id ?? 0;
 
-        List<Fach> faecher = _fachDataAccess.GetAll();
+        List<Fach> faecher = _fachService.GetAlle();
 
         LstFaecher.ItemsSource = faecher;
         TxtFachAnzahl.Text = faecher.Count == 1 ? "1 Fach" : $"{faecher.Count} Fächer";
@@ -74,31 +76,9 @@ public partial class MainWindow : Window
     {
         var name = TxtNeuesFach.Text.Trim();
 
-        if (name.Length == 0)
-        {
-            Hinweis("Gib zuerst einen Fachnamen ein.");
-            TxtNeuesFach.Focus();
-            return;
-        }
-
-        if (_fachDataAccess.ExistiertName(name))
-        {
-            Hinweis($"Das Fach \"{name}\" gibt es bereits.");
-            TxtNeuesFach.SelectAll();
-            TxtNeuesFach.Focus();
-            return;
-        }
-
         try
         {
-            var fach = new Fach
-            {
-                Name = name,
-                Lehrperson = TxtNeueLehrperson.Text.Trim(),
-                Erstellt = DateTime.Now.ToString("yyyy-MM-dd HH:mm:ss")
-            };
-
-            int neueId = _fachDataAccess.Add(fach);
+            int neueId = _fachService.Hinzufuegen(name, TxtNeueLehrperson.Text);
 
             TxtNeuesFach.Clear();
             TxtNeueLehrperson.Clear();
@@ -106,6 +86,12 @@ public partial class MainWindow : Window
 
             LadeFaecher(neueId);
             Status($"Fach \"{name}\" angelegt.");
+        }
+        catch (ValidierungsException ex)
+        {
+            Hinweis(ex.Message);
+            TxtNeuesFach.SelectAll();
+            TxtNeuesFach.Focus();
         }
         catch (Exception ex)
         {
@@ -131,7 +117,7 @@ public partial class MainWindow : Window
 
         try
         {
-            _fachDataAccess.Delete(fach.Id);
+            _fachService.Loeschen(fach.Id);
             LadeFaecher();
             LadeFristen();
             Status($"Fach \"{fach.Name}\" gelöscht.");
