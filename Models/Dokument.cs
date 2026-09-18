@@ -1,3 +1,4 @@
+using System.ComponentModel.DataAnnotations.Schema;
 using System.Globalization;
 
 namespace SchulApp.Models;
@@ -16,7 +17,11 @@ public class Dokument
     public bool Abgegeben { get; set; }
     public int FachId { get; set; }
 
+    /// <summary>Navigation Property zur 1-Seite. Nur gefüllt, wenn mit Include() geladen.</summary>
+    public Fach? Fach { get; set; }
+
     /// <summary>Name des Fachs – nur bei der Fristenübersicht per JOIN gefüllt.</summary>
+    [NotMapped]
     public string FachName { get; set; } = string.Empty;
 
     // ---------- Nur-Lesen-Eigenschaften für die Anzeige ----------
