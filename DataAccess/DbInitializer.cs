@@ -1,4 +1,3 @@
-using Microsoft.Data.Sqlite;
 using Microsoft.EntityFrameworkCore;
 
 namespace SchulApp.DataAccess;
@@ -20,16 +19,5 @@ public static class DbInitializer
     {
         using var context = new AppDbContext();
         context.Database.Migrate();
-    }
-
-    /// <summary>Öffnet eine Verbindung mit aktivierten Fremdschlüsseln.</summary>
-    public static SqliteConnection OpenConnection()
-    {
-        var connection = new SqliteConnection(ConnectionString);
-        connection.Open();
-        using var pragma = connection.CreateCommand();
-        pragma.CommandText = "PRAGMA foreign_keys = ON;";
-        pragma.ExecuteNonQuery();
-        return connection;
     }
 }
