@@ -2,23 +2,21 @@ using System.Windows;
 using System.Windows.Controls;
 using System.Windows.Input;
 using Microsoft.Win32;
-using SchulApp.DataAccess;
 using SchulApp.Models;
 using SchulApp.Services;
 
 namespace SchulApp;
 
 /// <summary>
-/// Code-Behind: ausschliesslich UI-Logik und Aufrufe der DataAccess-Methoden.
+/// Code-Behind: ausschliesslich UI-Logik und Aufrufe der Service-Schicht.
 /// Kein MVVM, kein INotifyPropertyChanged – nach jeder Änderung werden die
 /// betroffenen Listen neu aus der Datenbank geladen.
 /// </summary>
 public partial class MainWindow : Window
 {
+    private readonly StartService _startService = new();
     private readonly FachService _fachService = new();
-    private readonly FachDataAccess _fachDataAccess = new();   // nur noch für Beispieldaten, entfällt mit StartService
     private readonly DokumentService _dokumentService = new();
-    private readonly DokumentDataAccess _dokumentDataAccess = new();   // nur noch für Beispieldaten, entfällt mit StartService
 
     public MainWindow()
     {
@@ -31,8 +29,7 @@ public partial class MainWindow : Window
     {
         try
         {
-            DbInitializer.Initialize();
-            BeispieldatenAnlegen();   // nur beim allerersten Start, siehe unten
+            _startService.Initialisiere();   // Datenbank + Beispieldaten beim allerersten Start
 
             TxtHeute.Text = DateTime.Today.ToString("dddd, dd. MMMM yyyy");
 
@@ -320,55 +317,5 @@ public partial class MainWindow : Window
         Status(text);
         MessageBox.Show(this, $"{text}\n\n{ex.Message}", "Fehler",
             MessageBoxButton.OK, MessageBoxImage.Error);
-    }
-
-    /// <summary>
-    /// Legt beim allerersten Start ein paar Beispieldaten an, damit die Oberfläche
-    /// nicht leer startet. Diese Methode kann ersatzlos gelöscht werden.
-    /// </summary>
-    private void BeispieldatenAnlegen()
-    {
-        if (_fachDataAccess.GetAll().Count > 0) return;
-
-        var heute = DateTime.Today;
-
-        int prg = _fachDataAccess.Add(new Fach { Name = "PRG I", Lehrperson = "M. Keller" });
-        int ism = _fachDataAccess.Add(new Fach { Name = "ISM", Lehrperson = "S. Brunner" });
-        int lds = _fachDataAccess.Add(new Fach { Name = "LDS II", Lehrperson = "A. Marti" });
-
-        _dokumentDataAccess.Add(new Dokument
-        {
-            Titel = "Übung 4 – Schleifen",
-            Typ = "Auftrag",
-            Frist = heute.AddDays(-2).ToString("yyyy-MM-dd"),
-            FachId = prg
-        });
-        _dokumentDataAccess.Add(new Dokument
-        {
-            Titel = "Projektdokumentation",
-            Typ = "Projekt",
-            Frist = heute.AddDays(4).ToString("yyyy-MM-dd"),
-            FachId = prg
-        });
-        _dokumentDataAccess.Add(new Dokument
-        {
-            Titel = "Zusammenfassung Kapitel 1–3",
-            Typ = "Notizen",
-            FachId = prg
-        });
-        _dokumentDataAccess.Add(new Dokument
-        {
-            Titel = "Fallstudie Datenschutz",
-            Typ = "Auftrag",
-            Frist = heute.AddDays(1).ToString("yyyy-MM-dd"),
-            FachId = ism
-        });
-        _dokumentDataAccess.Add(new Dokument
-        {
-            Titel = "Vorbereitung Prüfung",
-            Typ = "Prüfung",
-            Frist = heute.AddDays(11).ToString("yyyy-MM-dd"),
-            FachId = lds
-        });
     }
 }

@@ -5,7 +5,7 @@ namespace SchulApp.Services;
 
 /// <summary>
 /// Business-Logik rund um Fächer: Regeln und Ablaufsteuerung.
-/// Spricht die Datenbank ausschliesslich über FachDataAccess an – kein SQL hier.
+/// Spricht die Datenbank ausschliesslich über FachDataAccess an - kein SQL hier.
 /// </summary>
 public class FachService
 {

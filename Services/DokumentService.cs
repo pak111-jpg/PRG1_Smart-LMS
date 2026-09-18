@@ -6,13 +6,13 @@ namespace SchulApp.Services;
 /// <summary>
 /// Business-Logik rund um Dokumente: Ablage, Fristenübersicht und der
 /// Kernprozess "als abgegeben markieren".
-/// Spricht die Datenbank ausschliesslich über DokumentDataAccess an – kein SQL hier.
+/// Spricht die Datenbank ausschliesslich über DokumentDataAccess an - kein SQL hier.
 /// </summary>
 public class DokumentService
 {
     private const string StandardTyp = "Auftrag";
 
-    /// <summary>Speicherformat der Frist – dadurch sortiert die Datenbank korrekt.</summary>
+    /// <summary>Speicherformat der Frist - dadurch sortiert die Datenbank korrekt.</summary>
     private const string FristFormat = "yyyy-MM-dd";
 
     private readonly DokumentDataAccess _dataAccess = new();
@@ -85,7 +85,7 @@ public class DokumentService
         return neuerStatus;
     }
 
-    /// <summary>Markiert ein Dokument als abgegeben – es fällt damit aus der Fristenübersicht.</summary>
+    /// <summary>Markiert ein Dokument als abgegeben - es fällt damit aus der Fristenübersicht.</summary>
     public void MarkiereAlsAbgegeben(int dokumentId)
     {
         _dataAccess.SetAbgegeben(dokumentId, true);
