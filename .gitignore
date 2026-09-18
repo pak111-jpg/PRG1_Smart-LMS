@@ -1,0 +1,15 @@
+# Build-Ausgaben
+bin/
+obj/
+
+# Visual Studio / Rider / VS Code
+.vs/
+.idea/
+*.user
+*.suo
+
+# Lokale SQLite-Datenbank (wird beim Start erzeugt)
+app.db
+app.db-shm
+app.db-wal
+*.db
