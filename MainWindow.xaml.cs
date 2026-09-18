@@ -2,21 +2,20 @@ using System.Windows;
 using System.Windows.Controls;
 using System.Windows.Input;
 using Microsoft.Win32;
-using SchulApp.Data;
+using SchulApp.DataAccess;
 using SchulApp.Models;
-using SchulApp.Repositories;
 
 namespace SchulApp;
 
 /// <summary>
-/// Code-Behind: ausschliesslich UI-Logik und Aufrufe der Repository-Methoden.
+/// Code-Behind: ausschliesslich UI-Logik und Aufrufe der DataAccess-Methoden.
 /// Kein MVVM, kein INotifyPropertyChanged – nach jeder Änderung werden die
 /// betroffenen Listen neu aus der Datenbank geladen.
 /// </summary>
 public partial class MainWindow : Window
 {
-    private readonly FachRepository _fachRepository = new();
-    private readonly DokumentRepository _dokumentRepository = new();
+    private readonly FachDataAccess _fachDataAccess = new();
+    private readonly DokumentDataAccess _dokumentDataAccess = new();
 
     public MainWindow()
     {
@@ -52,7 +51,7 @@ public partial class MainWindow : Window
             ? auswaehlenId
             : (LstFaecher.SelectedItem as Fach)?.Id ?? 0;
 
-        List<Fach> faecher = _fachRepository.GetAll();
+        List<Fach> faecher = _fachDataAccess.GetAll();
 
         LstFaecher.ItemsSource = faecher;
         TxtFachAnzahl.Text = faecher.Count == 1 ? "1 Fach" : $"{faecher.Count} Fächer";
@@ -82,7 +81,7 @@ public partial class MainWindow : Window
             return;
         }
 
-        if (_fachRepository.ExistiertName(name))
+        if (_fachDataAccess.ExistiertName(name))
         {
             Hinweis($"Das Fach \"{name}\" gibt es bereits.");
             TxtNeuesFach.SelectAll();
@@ -99,7 +98,7 @@ public partial class MainWindow : Window
                 Erstellt = DateTime.Now.ToString("yyyy-MM-dd HH:mm:ss")
             };
 
-            int neueId = _fachRepository.Add(fach);
+            int neueId = _fachDataAccess.Add(fach);
 
             TxtNeuesFach.Clear();
             TxtNeueLehrperson.Clear();
@@ -132,7 +131,7 @@ public partial class MainWindow : Window
 
         try
         {
-            _fachRepository.Delete(fach.Id);
+            _fachDataAccess.Delete(fach.Id);
             LadeFaecher();
             LadeFristen();
             Status($"Fach \"{fach.Name}\" gelöscht.");
@@ -163,7 +162,7 @@ public partial class MainWindow : Window
             return;
         }
 
-        List<Dokument> dokumente = _dokumentRepository.GetByFach(fach.Id);
+        List<Dokument> dokumente = _dokumentDataAccess.GetByFach(fach.Id);
 
         GrdDokumente.ItemsSource = dokumente;
         BtnDokumentHinzufuegen.IsEnabled = true;
@@ -205,7 +204,7 @@ public partial class MainWindow : Window
                 FachId = fach.Id
             };
 
-            _dokumentRepository.Add(dokument);
+            _dokumentDataAccess.Add(dokument);
 
             TxtDokTitel.Clear();
             TxtDateipfad.Clear();
@@ -257,7 +256,7 @@ public partial class MainWindow : Window
         try
         {
             bool neuerStatus = !dokument.Abgegeben;
-            _dokumentRepository.SetAbgegeben(dokument.Id, neuerStatus);
+            _dokumentDataAccess.SetAbgegeben(dokument.Id, neuerStatus);
 
             LadeDokumente(LstFaecher.SelectedItem as Fach);
             LadeFristen();
@@ -282,7 +281,7 @@ public partial class MainWindow : Window
 
         try
         {
-            _dokumentRepository.Delete(dokument.Id);
+            _dokumentDataAccess.Delete(dokument.Id);
             LadeFaecher((LstFaecher.SelectedItem as Fach)?.Id ?? 0);
             LadeFristen();
             Status($"\"{dokument.Titel}\" gelöscht.");
@@ -297,7 +296,7 @@ public partial class MainWindow : Window
 
     private void LadeFristen()
     {
-        List<Dokument> fristen = _dokumentRepository.GetOffeneFristen();
+        List<Dokument> fristen = _dokumentDataAccess.GetOffeneFristen();
 
         LstFristen.ItemsSource = fristen;
         TxtFristenAnzahl.Text = fristen.Count == 1 ? "1 offen" : $"{fristen.Count} offen";
@@ -315,7 +314,7 @@ public partial class MainWindow : Window
 
         try
         {
-            _dokumentRepository.SetAbgegeben(dokument.Id, true);
+            _dokumentDataAccess.SetAbgegeben(dokument.Id, true);
             LadeDokumente(LstFaecher.SelectedItem as Fach);
             LadeFristen();
             Status($"\"{dokument.Titel}\" ist abgegeben.");
@@ -350,42 +349,42 @@ public partial class MainWindow : Window
     /// </summary>
     private void BeispieldatenAnlegen()
     {
-        if (_fachRepository.GetAll().Count > 0) return;
+        if (_fachDataAccess.GetAll().Count > 0) return;
 
         var heute = DateTime.Today;
 
-        int prg = _fachRepository.Add(new Fach { Name = "PRG I", Lehrperson = "M. Keller" });
-        int ism = _fachRepository.Add(new Fach { Name = "ISM", Lehrperson = "S. Brunner" });
-        int lds = _fachRepository.Add(new Fach { Name = "LDS II", Lehrperson = "A. Marti" });
+        int prg = _fachDataAccess.Add(new Fach { Name = "PRG I", Lehrperson = "M. Keller" });
+        int ism = _fachDataAccess.Add(new Fach { Name = "ISM", Lehrperson = "S. Brunner" });
+        int lds = _fachDataAccess.Add(new Fach { Name = "LDS II", Lehrperson = "A. Marti" });
 
-        _dokumentRepository.Add(new Dokument
+        _dokumentDataAccess.Add(new Dokument
         {
             Titel = "Übung 4 – Schleifen",
             Typ = "Auftrag",
             Frist = heute.AddDays(-2).ToString("yyyy-MM-dd"),
             FachId = prg
         });
-        _dokumentRepository.Add(new Dokument
+        _dokumentDataAccess.Add(new Dokument
         {
             Titel = "Projektdokumentation",
             Typ = "Projekt",
             Frist = heute.AddDays(4).ToString("yyyy-MM-dd"),
             FachId = prg
         });
-        _dokumentRepository.Add(new Dokument
+        _dokumentDataAccess.Add(new Dokument
         {
             Titel = "Zusammenfassung Kapitel 1–3",
             Typ = "Notizen",
             FachId = prg
         });
-        _dokumentRepository.Add(new Dokument
+        _dokumentDataAccess.Add(new Dokument
         {
             Titel = "Fallstudie Datenschutz",
             Typ = "Auftrag",
             Frist = heute.AddDays(1).ToString("yyyy-MM-dd"),
             FachId = ism
         });
-        _dokumentRepository.Add(new Dokument
+        _dokumentDataAccess.Add(new Dokument
         {
             Titel = "Vorbereitung Prüfung",
             Typ = "Prüfung",
