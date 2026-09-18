@@ -1,4 +1,3 @@
-using System.ComponentModel.DataAnnotations.Schema;
 using System.Globalization;
 
 namespace SchulApp.Models;
@@ -20,9 +19,11 @@ public class Dokument
     /// <summary>Navigation Property zur 1-Seite. Nur gefüllt, wenn mit Include() geladen.</summary>
     public Fach? Fach { get; set; }
 
-    /// <summary>Name des Fachs – nur bei der Fristenübersicht per JOIN gefüllt.</summary>
-    [NotMapped]
-    public string FachName { get; set; } = string.Empty;
+    /// <summary>
+    /// Name des Fachs - nur gefüllt, wenn das Fach mit Include() mitgeladen wurde
+    /// (Fristenübersicht). Reine Anzeige, keine Tabellenspalte.
+    /// </summary>
+    public string FachName => Fach?.Name ?? string.Empty;
 
     // ---------- Nur-Lesen-Eigenschaften für die Anzeige ----------
 
