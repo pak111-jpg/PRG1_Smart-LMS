@@ -2,21 +2,21 @@ using System.Windows;
 using System.Windows.Controls;
 using System.Windows.Input;
 using Microsoft.Win32;
-using SchulApp.Data;
 using SchulApp.Models;
-using SchulApp.Repositories;
+using SchulApp.Services;
 
 namespace SchulApp;
 
 /// <summary>
-/// Code-Behind: ausschliesslich UI-Logik und Aufrufe der Repository-Methoden.
+/// Code-Behind: ausschliesslich UI-Logik und Aufrufe der Service-Schicht.
 /// Kein MVVM, kein INotifyPropertyChanged – nach jeder Änderung werden die
 /// betroffenen Listen neu aus der Datenbank geladen.
 /// </summary>
 public partial class MainWindow : Window
 {
-    private readonly FachRepository _fachRepository = new();
-    private readonly DokumentRepository _dokumentRepository = new();
+    private readonly StartService _startService = new();
+    private readonly FachService _fachService = new();
+    private readonly DokumentService _dokumentService = new();
 
     public MainWindow()
     {
@@ -29,8 +29,7 @@ public partial class MainWindow : Window
     {
         try
         {
-            DbInitializer.Initialize();
-            BeispieldatenAnlegen();   // nur beim allerersten Start, siehe unten
+            _startService.Initialisiere();   // Datenbank + Beispieldaten beim allerersten Start
 
             TxtHeute.Text = DateTime.Today.ToString("dddd, dd. MMMM yyyy");
 
@@ -52,7 +51,7 @@ public partial class MainWindow : Window
             ? auswaehlenId
             : (LstFaecher.SelectedItem as Fach)?.Id ?? 0;
 
-        List<Fach> faecher = _fachRepository.GetAll();
+        List<Fach> faecher = _fachService.GetAlle();
 
         LstFaecher.ItemsSource = faecher;
         TxtFachAnzahl.Text = faecher.Count == 1 ? "1 Fach" : $"{faecher.Count} Fächer";
@@ -75,31 +74,9 @@ public partial class MainWindow : Window
     {
         var name = TxtNeuesFach.Text.Trim();
 
-        if (name.Length == 0)
-        {
-            Hinweis("Gib zuerst einen Fachnamen ein.");
-            TxtNeuesFach.Focus();
-            return;
-        }
-
-        if (_fachRepository.ExistiertName(name))
-        {
-            Hinweis($"Das Fach \"{name}\" gibt es bereits.");
-            TxtNeuesFach.SelectAll();
-            TxtNeuesFach.Focus();
-            return;
-        }
-
         try
         {
-            var fach = new Fach
-            {
-                Name = name,
-                Lehrperson = TxtNeueLehrperson.Text.Trim(),
-                Erstellt = DateTime.Now.ToString("yyyy-MM-dd HH:mm:ss")
-            };
-
-            int neueId = _fachRepository.Add(fach);
+            int neueId = _fachService.Hinzufuegen(name, TxtNeueLehrperson.Text);
 
             TxtNeuesFach.Clear();
             TxtNeueLehrperson.Clear();
@@ -107,6 +84,12 @@ public partial class MainWindow : Window
 
             LadeFaecher(neueId);
             Status($"Fach \"{name}\" angelegt.");
+        }
+        catch (ValidierungsException ex)
+        {
+            Hinweis(ex.Message);
+            TxtNeuesFach.SelectAll();
+            TxtNeuesFach.Focus();
         }
         catch (Exception ex)
         {
@@ -132,7 +115,7 @@ public partial class MainWindow : Window
 
         try
         {
-            _fachRepository.Delete(fach.Id);
+            _fachService.Loeschen(fach.Id);
             LadeFaecher();
             LadeFristen();
             Status($"Fach \"{fach.Name}\" gelöscht.");
@@ -163,12 +146,12 @@ public partial class MainWindow : Window
             return;
         }
 
-        List<Dokument> dokumente = _dokumentRepository.GetByFach(fach.Id);
+        List<Dokument> dokumente = _dokumentService.GetByFach(fach.Id);
 
         GrdDokumente.ItemsSource = dokumente;
         BtnDokumentHinzufuegen.IsEnabled = true;
 
-        var offen = dokumente.Count(d => !d.Abgegeben);
+        int offen = _dokumentService.ZaehleOffene(dokumente);
         TxtFachUntertitel.Text = string.IsNullOrWhiteSpace(fach.Lehrperson)
             ? fach.Name
             : $"{fach.Name} · {fach.Lehrperson}";
@@ -185,27 +168,15 @@ public partial class MainWindow : Window
         }
 
         var titel = TxtDokTitel.Text.Trim();
-        if (titel.Length == 0)
-        {
-            Hinweis("Gib einen Titel für das Dokument ein.");
-            TxtDokTitel.Focus();
-            return;
-        }
 
         try
         {
-            var dokument = new Dokument
-            {
-                Titel = titel,
-                Typ = (CmbTyp.SelectedItem as ComboBoxItem)?.Content?.ToString() ?? "Auftrag",
-                Dateipfad = TxtDateipfad.Text.Trim(),
-                // Frist als "yyyy-MM-dd" speichern – dadurch sortiert SQL korrekt.
-                Frist = DpFrist.SelectedDate?.ToString("yyyy-MM-dd"),
-                Abgegeben = false,
-                FachId = fach.Id
-            };
-
-            _dokumentRepository.Add(dokument);
+            Dokument dokument = _dokumentService.Hinzufuegen(
+                titel,
+                (CmbTyp.SelectedItem as ComboBoxItem)?.Content?.ToString(),
+                TxtDateipfad.Text,
+                DpFrist.SelectedDate,
+                fach.Id);
 
             TxtDokTitel.Clear();
             TxtDateipfad.Clear();
@@ -217,6 +188,11 @@ public partial class MainWindow : Window
             Status(dokument.HatFrist
                 ? $"\"{titel}\" abgelegt, Frist {dokument.FristAnzeige}."
                 : $"\"{titel}\" abgelegt.");
+        }
+        catch (ValidierungsException ex)
+        {
+            Hinweis(ex.Message);
+            TxtDokTitel.Focus();
         }
         catch (Exception ex)
         {
@@ -256,8 +232,7 @@ public partial class MainWindow : Window
 
         try
         {
-            bool neuerStatus = !dokument.Abgegeben;
-            _dokumentRepository.SetAbgegeben(dokument.Id, neuerStatus);
+            bool neuerStatus = _dokumentService.AbgabeUmschalten(dokument);
 
             LadeDokumente(LstFaecher.SelectedItem as Fach);
             LadeFristen();
@@ -282,7 +257,7 @@ public partial class MainWindow : Window
 
         try
         {
-            _dokumentRepository.Delete(dokument.Id);
+            _dokumentService.Loeschen(dokument.Id);
             LadeFaecher((LstFaecher.SelectedItem as Fach)?.Id ?? 0);
             LadeFristen();
             Status($"\"{dokument.Titel}\" gelöscht.");
@@ -297,13 +272,13 @@ public partial class MainWindow : Window
 
     private void LadeFristen()
     {
-        List<Dokument> fristen = _dokumentRepository.GetOffeneFristen();
+        List<Dokument> fristen = _dokumentService.GetOffeneFristen();
 
         LstFristen.ItemsSource = fristen;
         TxtFristenAnzahl.Text = fristen.Count == 1 ? "1 offen" : $"{fristen.Count} offen";
         TxtKeineFristen.Visibility = fristen.Count == 0 ? Visibility.Visible : Visibility.Collapsed;
 
-        int ueberfaellig = fristen.Count(f => f.IstUeberfaellig);
+        int ueberfaellig = _dokumentService.ZaehleUeberfaellige(fristen);
         TxtUeberfaellig.Text = ueberfaellig == 1 ? "1 überfällig" : $"{ueberfaellig} überfällig";
         BdrUeberfaellig.Visibility = ueberfaellig > 0 ? Visibility.Visible : Visibility.Collapsed;
     }
@@ -315,7 +290,7 @@ public partial class MainWindow : Window
 
         try
         {
-            _dokumentRepository.SetAbgegeben(dokument.Id, true);
+            _dokumentService.MarkiereAlsAbgegeben(dokument.Id);
             LadeDokumente(LstFaecher.SelectedItem as Fach);
             LadeFristen();
             Status($"\"{dokument.Titel}\" ist abgegeben.");
@@ -342,55 +317,5 @@ public partial class MainWindow : Window
         Status(text);
         MessageBox.Show(this, $"{text}\n\n{ex.Message}", "Fehler",
             MessageBoxButton.OK, MessageBoxImage.Error);
-    }
-
-    /// <summary>
-    /// Legt beim allerersten Start ein paar Beispieldaten an, damit die Oberfläche
-    /// nicht leer startet. Diese Methode kann ersatzlos gelöscht werden.
-    /// </summary>
-    private void BeispieldatenAnlegen()
-    {
-        if (_fachRepository.GetAll().Count > 0) return;
-
-        var heute = DateTime.Today;
-
-        int prg = _fachRepository.Add(new Fach { Name = "PRG I", Lehrperson = "M. Keller" });
-        int ism = _fachRepository.Add(new Fach { Name = "ISM", Lehrperson = "S. Brunner" });
-        int lds = _fachRepository.Add(new Fach { Name = "LDS II", Lehrperson = "A. Marti" });
-
-        _dokumentRepository.Add(new Dokument
-        {
-            Titel = "Übung 4 – Schleifen",
-            Typ = "Auftrag",
-            Frist = heute.AddDays(-2).ToString("yyyy-MM-dd"),
-            FachId = prg
-        });
-        _dokumentRepository.Add(new Dokument
-        {
-            Titel = "Projektdokumentation",
-            Typ = "Projekt",
-            Frist = heute.AddDays(4).ToString("yyyy-MM-dd"),
-            FachId = prg
-        });
-        _dokumentRepository.Add(new Dokument
-        {
-            Titel = "Zusammenfassung Kapitel 1–3",
-            Typ = "Notizen",
-            FachId = prg
-        });
-        _dokumentRepository.Add(new Dokument
-        {
-            Titel = "Fallstudie Datenschutz",
-            Typ = "Auftrag",
-            Frist = heute.AddDays(1).ToString("yyyy-MM-dd"),
-            FachId = ism
-        });
-        _dokumentRepository.Add(new Dokument
-        {
-            Titel = "Vorbereitung Prüfung",
-            Typ = "Prüfung",
-            Frist = heute.AddDays(11).ToString("yyyy-MM-dd"),
-            FachId = lds
-        });
     }
 }

@@ -1,6 +1,6 @@
 using Microsoft.Data.Sqlite;
 
-namespace SchulApp.Data;
+namespace SchulApp.DataAccess;
 
 /// <summary>
 /// Legt die SQLite-Datenbank und beide Tabellen an, falls sie noch nicht existieren.

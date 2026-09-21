@@ -1,14 +1,13 @@
 using Microsoft.Data.Sqlite;
-using SchulApp.Data;
 using SchulApp.Models;
 
-namespace SchulApp.Repositories;
+namespace SchulApp.DataAccess;
 
 /// <summary>
 /// Sämtliche SQL-Zugriffe auf die Tabelle Dokument inkl. Fristenübersicht
 /// und dem Workflow "als abgegeben markieren".
 /// </summary>
-public class DokumentRepository
+public class DokumentDataAccess
 {
     // ---------- READ ----------
 

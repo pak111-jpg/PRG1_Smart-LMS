@@ -1,14 +1,13 @@
 using Microsoft.Data.Sqlite;
-using SchulApp.Data;
 using SchulApp.Models;
 
-namespace SchulApp.Repositories;
+namespace SchulApp.DataAccess;
 
 /// <summary>
 /// Sämtliche SQL-Zugriffe auf die Tabelle Fach. Direkte SQL-Abfragen,
 /// Parameter immer über SqliteParameter (kein String-Zusammenbau).
 /// </summary>
-public class FachRepository
+public class FachDataAccess
 {
     // ---------- READ ----------
 
