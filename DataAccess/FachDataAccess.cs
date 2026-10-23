@@ -1,11 +1,10 @@
-using Microsoft.Data.Sqlite;
 using SchulApp.Models;
 
 namespace SchulApp.DataAccess;
 
 /// <summary>
-/// Sämtliche SQL-Zugriffe auf die Tabelle Fach. Direkte SQL-Abfragen,
-/// Parameter immer über SqliteParameter (kein String-Zusammenbau).
+/// Sämtliche Datenbankzugriffe auf die Tabelle Fach - über AppDbContext und LINQ,
+/// ohne SQL-Strings. Pro Methode ein eigener, kurzlebiger Context.
 /// </summary>
 public class FachDataAccess
 {
@@ -14,69 +13,33 @@ public class FachDataAccess
     /// <summary>Alle Fächer inkl. Anzahl der zugehörigen Dokumente, alphabetisch.</summary>
     public List<Fach> GetAll()
     {
-        var liste = new List<Fach>();
+        using var context = new AppDbContext();
 
-        using var connection = DbInitializer.OpenConnection();
-        using var command = connection.CreateCommand();
-        command.CommandText = @"
-SELECT  f.Id,
-        f.Name,
-        IFNULL(f.Lehrperson, '') AS Lehrperson,
-        f.Erstellt,
-        (SELECT COUNT(*) FROM Dokument d WHERE d.FachId = f.Id) AS AnzahlDokumente
-FROM    Fach f
-ORDER BY f.Name COLLATE NOCASE ASC;";
+        // Die Anzahl wird in derselben Abfrage mitgezählt - kein Nachladen pro Fach (N+1).
+        var zeilen = context.Faecher
+            .OrderBy(f => f.Name)
+            .Select(f => new { Fach = f, Anzahl = f.Dokumente.Count })
+            .ToList();
 
-        using var reader = command.ExecuteReader();
-        while (reader.Read())
-        {
-            liste.Add(new Fach
-            {
-                Id = reader.GetInt32(0),
-                Name = reader.GetString(1),
-                Lehrperson = reader.GetString(2),
-                Erstellt = reader.GetString(3),
-                AnzahlDokumente = reader.GetInt32(4)
-            });
-        }
+        foreach (var zeile in zeilen)
+            zeile.Fach.AnzahlDokumente = zeile.Anzahl;
 
-        return liste;
+        return zeilen.Select(zeile => zeile.Fach).ToList();
     }
 
     public Fach? GetById(int id)
     {
-        using var connection = DbInitializer.OpenConnection();
-        using var command = connection.CreateCommand();
-        command.CommandText = @"
-SELECT Id, Name, IFNULL(Lehrperson, ''), Erstellt
-FROM   Fach
-WHERE  Id = $id;";
-        command.Parameters.AddWithValue("$id", id);
-
-        using var reader = command.ExecuteReader();
-        if (!reader.Read()) return null;
-
-        return new Fach
-        {
-            Id = reader.GetInt32(0),
-            Name = reader.GetString(1),
-            Lehrperson = reader.GetString(2),
-            Erstellt = reader.GetString(3)
-        };
+        using var context = new AppDbContext();
+        return context.Faecher.Find(id);
     }
 
     /// <summary>Prüft, ob ein Fachname bereits vergeben ist (optional eigene Id ausschliessen).</summary>
     public bool ExistiertName(string name, int ausserId = 0)
     {
-        using var connection = DbInitializer.OpenConnection();
-        using var command = connection.CreateCommand();
-        command.CommandText = @"
-SELECT COUNT(*) FROM Fach
-WHERE Name = $name COLLATE NOCASE AND Id <> $id;";
-        command.Parameters.AddWithValue("$name", name.Trim());
-        command.Parameters.AddWithValue("$id", ausserId);
+        name = name.Trim();
 
-        return Convert.ToInt32(command.ExecuteScalar()) > 0;
+        using var context = new AppDbContext();
+        return context.Faecher.Any(f => f.Name == name && f.Id != ausserId);
     }
 
     // ---------- CREATE ----------
@@ -84,68 +47,44 @@ WHERE Name = $name COLLATE NOCASE AND Id <> $id;";
     /// <summary>Fügt ein Fach ein und liefert die neue Id zurück.</summary>
     public int Add(Fach fach)
     {
-        using var connection = DbInitializer.OpenConnection();
-        using var command = connection.CreateCommand();
-        command.CommandText = @"
-INSERT INTO Fach (Name, Lehrperson, Erstellt)
-VALUES ($name, $lehrperson, $erstellt);
-SELECT last_insert_rowid();";
-        command.Parameters.AddWithValue("$name", fach.Name.Trim());
-        command.Parameters.AddWithValue("$lehrperson", fach.Lehrperson?.Trim() ?? string.Empty);
-        command.Parameters.AddWithValue("$erstellt",
-            string.IsNullOrWhiteSpace(fach.Erstellt)
-                ? DateTime.Now.ToString("yyyy-MM-dd HH:mm:ss")
-                : fach.Erstellt);
+        fach.Name = fach.Name.Trim();
+        fach.Lehrperson = fach.Lehrperson?.Trim() ?? string.Empty;
+        if (string.IsNullOrWhiteSpace(fach.Erstellt))
+            fach.Erstellt = DateTime.Now.ToString("yyyy-MM-dd HH:mm:ss");
 
-        var neueId = Convert.ToInt32(command.ExecuteScalar());
-        fach.Id = neueId;
-        return neueId;
+        using var context = new AppDbContext();
+        context.Faecher.Add(fach);
+        context.SaveChanges();   // EF Core trägt die neue Id direkt in fach.Id ein
+
+        return fach.Id;
     }
 
     // ---------- UPDATE ----------
 
     public void Update(Fach fach)
     {
-        using var connection = DbInitializer.OpenConnection();
-        using var command = connection.CreateCommand();
-        command.CommandText = @"
-UPDATE Fach
-SET    Name = $name,
-       Lehrperson = $lehrperson
-WHERE  Id = $id;";
-        command.Parameters.AddWithValue("$name", fach.Name.Trim());
-        command.Parameters.AddWithValue("$lehrperson", fach.Lehrperson?.Trim() ?? string.Empty);
-        command.Parameters.AddWithValue("$id", fach.Id);
-        command.ExecuteNonQuery();
+        using var context = new AppDbContext();
+        var vorhanden = context.Faecher.Find(fach.Id);
+        if (vorhanden == null) return;
+
+        vorhanden.Name = fach.Name.Trim();
+        vorhanden.Lehrperson = fach.Lehrperson?.Trim() ?? string.Empty;
+        context.SaveChanges();
     }
 
     // ---------- DELETE ----------
 
     /// <summary>
-    /// Löscht ein Fach samt seinen Dokumenten in einer Transaktion.
-    /// (ON DELETE CASCADE greift zusätzlich, das explizite DELETE macht die Absicht sichtbar.)
+    /// Löscht ein Fach. Seine Dokumente löscht die Datenbank über die
+    /// Beziehung gleich mit (ON DELETE CASCADE, siehe AppDbContext).
     /// </summary>
     public void Delete(int id)
     {
-        using var connection = DbInitializer.OpenConnection();
-        using SqliteTransaction transaction = connection.BeginTransaction();
+        using var context = new AppDbContext();
+        var fach = context.Faecher.Find(id);
+        if (fach == null) return;
 
-        using (var dokumente = connection.CreateCommand())
-        {
-            dokumente.Transaction = transaction;
-            dokumente.CommandText = "DELETE FROM Dokument WHERE FachId = $id;";
-            dokumente.Parameters.AddWithValue("$id", id);
-            dokumente.ExecuteNonQuery();
-        }
-
-        using (var fach = connection.CreateCommand())
-        {
-            fach.Transaction = transaction;
-            fach.CommandText = "DELETE FROM Fach WHERE Id = $id;";
-            fach.Parameters.AddWithValue("$id", id);
-            fach.ExecuteNonQuery();
-        }
-
-        transaction.Commit();
+        context.Faecher.Remove(fach);
+        context.SaveChanges();
     }
 }

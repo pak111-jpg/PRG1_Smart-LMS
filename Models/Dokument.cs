@@ -16,8 +16,14 @@ public class Dokument
     public bool Abgegeben { get; set; }
     public int FachId { get; set; }
 
-    /// <summary>Name des Fachs – nur bei der Fristenübersicht per JOIN gefüllt.</summary>
-    public string FachName { get; set; } = string.Empty;
+    /// <summary>Navigation Property zur 1-Seite. Nur gefüllt, wenn mit Include() geladen.</summary>
+    public Fach? Fach { get; set; }
+
+    /// <summary>
+    /// Name des Fachs - nur gefüllt, wenn das Fach mit Include() mitgeladen wurde
+    /// (Fristenübersicht). Reine Anzeige, keine Tabellenspalte.
+    /// </summary>
+    public string FachName => Fach?.Name ?? string.Empty;
 
     // ---------- Nur-Lesen-Eigenschaften für die Anzeige ----------
 

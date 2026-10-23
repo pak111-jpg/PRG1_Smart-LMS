@@ -1,3 +1,5 @@
+using System.ComponentModel.DataAnnotations.Schema;
+
 namespace SchulApp.Models;
 
 /// <summary>
@@ -11,7 +13,14 @@ public class Fach
     public string Lehrperson { get; set; } = string.Empty;
     public string Erstellt { get; set; } = string.Empty;
 
-    /// <summary>Anzahl zugehöriger Dokumente – wird per JOIN mitgeladen (nur Anzeige).</summary>
+    /// <summary>Navigation Property der 1:N-Beziehung: alle Dokumente dieses Fachs.</summary>
+    public ICollection<Dokument> Dokumente { get; set; } = new List<Dokument>();
+
+    /// <summary>
+    /// Anzahl zugehöriger Dokumente - wird von FachDataAccess mitgeladen (nur Anzeige).
+    /// Keine Tabellenspalte, deshalb NotMapped.
+    /// </summary>
+    [NotMapped]
     public int AnzahlDokumente { get; set; }
 
     /// <summary>Initialen für den runden Avatar in der Fächerliste, z. B. "PR".</summary>
