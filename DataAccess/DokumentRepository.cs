@@ -10,18 +10,15 @@ namespace SchulApp.DataAccess;
 /// </summary>
 public class DokumentRepository : Repository<Dokument>, IDokumentRepository
 {
-    // ---------- READ ----------
-
     public List<Dokument> GetByFach(int fachId)
     {
         using var context = new AppDbContext();
-        return context.Dokumente
-            .Where(d => d.FachId == fachId)
-            .OrderBy(d => d.Abgegeben)
-            .ThenBy(d => d.Frist == null || d.Frist == "")   // Dokumente ohne Frist ans Ende
-            .ThenBy(d => d.Frist)
-            .ThenBy(d => d.Titel)
-            .ToList();
+
+        var offeneZuerst = context.Dokumente
+            .Where(dokument => dokument.FachId == fachId)
+            .OrderBy(dokument => dokument.Abgegeben);
+
+        return SortiereNachFrist(offeneZuerst).ToList();
     }
 
     /// <summary>
@@ -32,63 +29,27 @@ public class DokumentRepository : Repository<Dokument>, IDokumentRepository
     {
         using var context = new AppDbContext();
         return context.Dokumente
-            .Include(d => d.Fach)
-            .Where(d => !d.Abgegeben && d.Frist != null && d.Frist != "")
-            .OrderBy(d => d.Frist)
+            .Include(dokument => dokument.Fach)
+            .Where(dokument => !dokument.Abgegeben && dokument.Frist != null && dokument.Frist != "")
+            .OrderBy(dokument => dokument.Frist)
             .ToList();
     }
 
     /// <summary>
-    /// Gesamtübersicht über alle Fächer: optional nach Titel gesucht, nach Status
-    /// gefiltert und sortiert. Die Abfrage wird Schritt für Schritt zusammengesetzt
-    /// und erst mit ToList() als ein einziges SQL-Statement ausgeführt.
+    /// Gesamtübersicht über alle Fächer. Die Abfrage wird Schritt für Schritt
+    /// zusammengesetzt und erst mit ToList() als ein einziges SQL-Statement ausgeführt.
     /// </summary>
     public List<Dokument> Suche(string suchtext, DokumentFilter filter, DokumentSortierung sortierung)
     {
-        // "yyyy-MM-dd" sortiert als Text gleich wie als Datum, deshalb reicht ein Textvergleich.
-        var heute = DateTime.Today.ToString("yyyy-MM-dd");
-
         using var context = new AppDbContext();
 
-        IQueryable<Dokument> abfrage = context.Dokumente.Include(d => d.Fach);
-
-        if (!string.IsNullOrWhiteSpace(suchtext))
-        {
-            // LIKE ignoriert in SQLite die Gross-/Kleinschreibung nur für A-Z. Damit auch
-            // Umlaute gefunden werden ("PRÜF" findet "Prüfung"), wird zusätzlich mit der
-            // klein- und der grossgeschriebenen Variante des Suchtexts verglichen.
-            var muster = $"%{suchtext.Trim()}%";
-            var musterKlein = muster.ToLower();
-            var musterGross = muster.ToUpper();
-            abfrage = abfrage.Where(d => EF.Functions.Like(d.Titel, muster)
-                                         || EF.Functions.Like(d.Titel, musterKlein)
-                                         || EF.Functions.Like(d.Titel, musterGross));
-        }
-
-        abfrage = filter switch
-        {
-            DokumentFilter.Offen => abfrage.Where(d => !d.Abgegeben),
-            DokumentFilter.Abgegeben => abfrage.Where(d => d.Abgegeben),
-            DokumentFilter.Ueberfaellig => abfrage.Where(d => !d.Abgegeben
-                                                              && d.Frist != null && d.Frist != ""
-                                                              && string.Compare(d.Frist, heute) < 0),
-            _ => abfrage
-        };
-
-        abfrage = sortierung switch
-        {
-            DokumentSortierung.Titel => abfrage.OrderBy(d => d.Titel),
-            DokumentSortierung.Fach => abfrage.OrderBy(d => d.Fach!.Name).ThenBy(d => d.Titel),
-            _ => abfrage
-                .OrderBy(d => d.Frist == null || d.Frist == "")   // Dokumente ohne Frist ans Ende
-                .ThenBy(d => d.Frist)
-                .ThenBy(d => d.Titel)
-        };
+        IQueryable<Dokument> abfrage = context.Dokumente.Include(dokument => dokument.Fach);
+        abfrage = FiltereNachTitel(abfrage, suchtext);
+        abfrage = FiltereNachStatus(abfrage, filter);
+        abfrage = Sortiere(abfrage, sortierung);
 
         return abfrage.ToList();
     }
-
-    // ---------- CREATE / UPDATE ----------
 
     public override void Add(Dokument entity)
     {
@@ -116,7 +77,67 @@ public class DokumentRepository : Repository<Dokument>, IDokumentRepository
         context.SaveChanges();
     }
 
-    // ---------- Hilfsmethode ----------
+    private static IQueryable<Dokument> FiltereNachTitel(IQueryable<Dokument> abfrage, string suchtext)
+    {
+        if (string.IsNullOrWhiteSpace(suchtext)) return abfrage;
+
+        // LIKE ignoriert in SQLite die Gross-/Kleinschreibung nur für A-Z. Damit auch
+        // Umlaute gefunden werden ("PRÜF" findet "Prüfung"), wird zusätzlich mit der
+        // klein- und der grossgeschriebenen Variante des Suchtexts verglichen.
+        var muster = $"%{suchtext.Trim()}%";
+        var musterKlein = muster.ToLower();
+        var musterGross = muster.ToUpper();
+
+        return abfrage.Where(dokument => EF.Functions.Like(dokument.Titel, muster)
+                                         || EF.Functions.Like(dokument.Titel, musterKlein)
+                                         || EF.Functions.Like(dokument.Titel, musterGross));
+    }
+
+    private static IQueryable<Dokument> FiltereNachStatus(IQueryable<Dokument> abfrage, DokumentFilter filter)
+    {
+        return filter switch
+        {
+            DokumentFilter.Offen => abfrage.Where(dokument => !dokument.Abgegeben),
+            DokumentFilter.Abgegeben => abfrage.Where(dokument => dokument.Abgegeben),
+            DokumentFilter.Ueberfaellig => FiltereUeberfaellige(abfrage),
+            _ => abfrage
+        };
+    }
+
+    private static IQueryable<Dokument> FiltereUeberfaellige(IQueryable<Dokument> abfrage)
+    {
+        // Das Speicherformat der Frist sortiert als Text gleich wie als Datum,
+        // deshalb reicht in der Datenbank ein Textvergleich.
+        var heute = DateTime.Today.ToString(Dokument.FristFormat);
+
+        return abfrage.Where(dokument => !dokument.Abgegeben
+                                         && dokument.Frist != null && dokument.Frist != ""
+                                         && string.Compare(dokument.Frist, heute) < 0);
+    }
+
+    private static IQueryable<Dokument> Sortiere(IQueryable<Dokument> abfrage, DokumentSortierung sortierung)
+    {
+        return sortierung switch
+        {
+            DokumentSortierung.Titel => abfrage.OrderBy(dokument => dokument.Titel),
+            DokumentSortierung.Fach => abfrage
+                .OrderBy(dokument => dokument.Fach!.Name)
+                .ThenBy(dokument => dokument.Titel),
+            _ => SortiereNachFrist(abfrage.OrderBy(dokument => dokument.Frist == null || dokument.Frist == ""))
+        };
+    }
+
+    /// <summary>
+    /// Hängt an eine bestehende Sortierung an: Dokumente ohne Frist ans Ende, sonst
+    /// früheste Frist zuerst, bei gleicher Frist nach Titel.
+    /// </summary>
+    private static IOrderedQueryable<Dokument> SortiereNachFrist(IOrderedQueryable<Dokument> vorsortiert)
+    {
+        return vorsortiert
+            .ThenBy(dokument => dokument.Frist == null || dokument.Frist == "")
+            .ThenBy(dokument => dokument.Frist)
+            .ThenBy(dokument => dokument.Titel);
+    }
 
     /// <summary>
     /// Einheitliche Schreibweise vor dem Speichern: Texte ohne Rand-Leerzeichen,

@@ -337,8 +337,8 @@
                         </Grid>
 
                         <!-- Erfassungsformular als UserControl (K0-Z, Aufgabe A3) -->
-                        <controls:DokumentEingabe x:Name="DokEingabe" Grid.Row="2" Margin="0,14,0,0"
-                                                  Ablegen="DokEingabe_Ablegen"/>
+                        <controls:DokumentEingabe x:Name="Eingabemaske" Grid.Row="2" Margin="0,14,0,0"
+                                                  Ablegen="Eingabemaske_Ablegen"/>
                     </Grid>
                 </Border>
 

@@ -21,48 +21,49 @@ public partial class DokumentEingabe : UserControl
         InitializeComponent();
     }
 
-    // ---------- Eingaben auslesen ----------
+    public string Titel => TxtDokumentTitel.Text.Trim();
 
-    public string Titel => TxtDokTitel.Text.Trim();
-
-    public string? Typ => (CmbTyp.SelectedItem as ComboBoxItem)?.Content?.ToString();
+    public string? Typ => CmbTyp.SelectedItem as string;
 
     public string Dateipfad => TxtDateipfad.Text;
 
     public DateTime? Frist => DpFrist.SelectedDate;
 
     /// <summary>Ohne ausgewähltes Fach kann nichts abgelegt werden.</summary>
-    public bool KannAblegen
+    public bool IstAblegenMoeglich
     {
         get => BtnDokumentHinzufuegen.IsEnabled;
         set => BtnDokumentHinzufuegen.IsEnabled = value;
     }
 
-    // ---------- Vom Fenster aufrufbar ----------
+    /// <summary>Füllt die Typ-Auswahl und wählt den ersten Eintrag vor.</summary>
+    public void SetzeTypen(IReadOnlyList<string> typen)
+    {
+        CmbTyp.ItemsSource = typen;
+        CmbTyp.SelectedIndex = 0;
+    }
 
     /// <summary>Leert die Maske nach dem Speichern; der Typ bleibt für die nächste Eingabe stehen.</summary>
     public void Leeren()
     {
-        TxtDokTitel.Clear();
+        TxtDokumentTitel.Clear();
         TxtDateipfad.Clear();
         DpFrist.SelectedDate = null;
     }
 
-    public void FokusAufTitel()
+    public void SetzeFokusAufTitel()
     {
-        TxtDokTitel.Focus();
+        TxtDokumentTitel.Focus();
     }
-
-    // ---------- Event-Handler ----------
 
     private void BtnDokumentHinzufuegen_Click(object sender, RoutedEventArgs e)
     {
         Ablegen?.Invoke(this, EventArgs.Empty);
     }
 
-    private void TxtDokTitel_KeyDown(object sender, KeyEventArgs e)
+    private void TxtDokumentTitel_KeyDown(object sender, KeyEventArgs e)
     {
-        if (e.Key == Key.Enter && KannAblegen)
+        if (e.Key == Key.Enter && IstAblegenMoeglich)
             Ablegen?.Invoke(this, EventArgs.Empty);
     }
 
@@ -77,8 +78,8 @@ public partial class DokumentEingabe : UserControl
         if (dialog.ShowDialog(Window.GetWindow(this)) == true)
         {
             TxtDateipfad.Text = dialog.FileName;
-            if (TxtDokTitel.Text.Trim().Length == 0)
-                TxtDokTitel.Text = System.IO.Path.GetFileNameWithoutExtension(dialog.FileName);
+            if (TxtDokumentTitel.Text.Trim().Length == 0)
+                TxtDokumentTitel.Text = System.IO.Path.GetFileNameWithoutExtension(dialog.FileName);
         }
     }
 }

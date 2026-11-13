@@ -51,7 +51,7 @@ public partial class AlleDokumenteWindow : Window
             List<DokumentDto> dokumente = _dokumentService.Suche(TxtSuche.Text, filter, sortierung);
 
             GrdAlleDokumente.ItemsSource = dokumente;
-            TxtAnzahl.Text = dokumente.Count == 1 ? "1 Dokument" : $"{dokumente.Count} Dokumente";
+            TxtAnzahl.Text = Anzeigetexte.AnzahlDokumente(dokumente.Count);
             TxtKeineTreffer.Visibility = dokumente.Count == 0 ? Visibility.Visible : Visibility.Collapsed;
         }
         catch (Exception ex)

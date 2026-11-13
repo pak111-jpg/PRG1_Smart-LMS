@@ -26,7 +26,9 @@ public class Repository<T> : IRepository<T> where T : class
     {
         using var context = new AppDbContext();
         context.Set<T>().Add(entity);
-        context.SaveChanges();   // EF Core trägt die neue Id direkt in die Entität ein
+
+        // EF Core trägt beim Speichern die neue Id direkt in die Entität ein.
+        context.SaveChanges();
     }
 
     public virtual void Update(T entity)

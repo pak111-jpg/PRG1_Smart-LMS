@@ -6,6 +6,9 @@ namespace SchulApp.Models;
 /// </summary>
 public class Fach
 {
+    /// <summary>Speicherformat des Erstellzeitpunkts.</summary>
+    public const string ErstelltFormat = "yyyy-MM-dd HH:mm:ss";
+
     public int Id { get; set; }
     public string Name { get; set; } = string.Empty;
     public string Lehrperson { get; set; } = string.Empty;
