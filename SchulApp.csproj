@@ -10,6 +10,14 @@
     <ApplicationHighDpiMode>PerMonitorV2</ApplicationHighDpiMode>
   </PropertyGroup>
 
+  <!-- Das Testprojekt liegt in einem Unterordner und ist ein eigenes Projekt. -->
+  <ItemGroup>
+    <Compile Remove="SchulApp.Tests\**" />
+    <EmbeddedResource Remove="SchulApp.Tests\**" />
+    <None Remove="SchulApp.Tests\**" />
+    <Page Remove="SchulApp.Tests\**" />
+  </ItemGroup>
+
   <ItemGroup>
     <PackageReference Include="Microsoft.EntityFrameworkCore.Design" Version="10.0.12">
       <IncludeAssets>runtime; build; native; contentfiles; analyzers; buildtransitive</IncludeAssets>
