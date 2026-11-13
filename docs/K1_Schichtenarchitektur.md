@@ -11,6 +11,7 @@ flowchart TD
         MW["MainWindow.xaml / MainWindow.xaml.cs"]
         DE["Controls/DokumentEingabe (UserControl)"]
         AW["AuswertungWindow.xaml / .xaml.cs"]
+        ADW["AlleDokumenteWindow.xaml / .xaml.cs"]
     end
 
     subgraph Service["Service (Business-Logik)"]
@@ -34,6 +35,8 @@ flowchart TD
     MW --> DE
     MW --> AW
     AW --> AS
+    MW --> ADW
+    ADW --> DS
 
     SS --> DBI
     SS --> FDA
@@ -61,6 +64,7 @@ von allen Schichten verwendet.
 | FachService     | Loeschen(fachId)                                  | FachDataAccess.Delete(fachId)                           |
 | DokumentService | GetByFach(fachId)                                 | DokumentDataAccess.GetByFach(fachId)                    |
 | DokumentService | GetOffeneFristen()                                | DokumentDataAccess.GetOffeneFristen()                   |
+| DokumentService | Suche(suchtext, filter, sortierung)               | DokumentDataAccess.Suche(suchtext, filter, sortierung)  |
 | DokumentService | Hinzufuegen(titel, typ, dateipfad, frist, fachId) | DokumentDataAccess.Add(dokument)                        |
 | DokumentService | Loeschen(dokumentId)                              | DokumentDataAccess.Delete(dokumentId)                   |
 | DokumentService | AbgabeUmschalten(dokument)                        | DokumentDataAccess.SetAbgegeben(id, neuerStatus)        |
