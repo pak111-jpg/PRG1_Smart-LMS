@@ -15,7 +15,7 @@ public class AppDbContext : DbContext
 
     protected override void OnConfiguring(DbContextOptionsBuilder optionsBuilder)
     {
-        optionsBuilder.UseSqlite(DbInitializer.ConnectionString);
+        optionsBuilder.UseSqlite(Datenbankeinstellungen.ConnectionString);
     }
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)

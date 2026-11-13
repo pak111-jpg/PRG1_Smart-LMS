@@ -9,11 +9,6 @@ namespace SchulApp.DataAccess;
 /// </summary>
 public static class DbInitializer
 {
-    // Neuer Dateiname ab K2: Die alte app.db wurde per SQL-Skript angelegt und kennt
-    // keine Migrations - Migrate() würde dort an "table Fach already exists" scheitern.
-    // Die alte Datei bleibt unangetastet liegen.
-    public const string ConnectionString = "Data Source=schulapp.db";
-
     /// <summary>Legt die Datenbank an bzw. führt alle noch fehlenden Migrations aus.</summary>
     public static void Initialize()
     {
