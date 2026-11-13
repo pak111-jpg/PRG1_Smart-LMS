@@ -1,7 +1,6 @@
 using System.Windows;
 using System.Windows.Controls;
 using System.Windows.Input;
-using Microsoft.Win32;
 using SchulApp.Models;
 using SchulApp.Services;
 
@@ -142,14 +141,15 @@ public partial class MainWindow : Window
             TxtFachUntertitel.Text = "Kein Fach ausgewählt";
             TxtDokumentAnzahl.Text = string.Empty;
             TxtKeineDokumente.Visibility = Visibility.Collapsed;
-            BtnDokumentHinzufuegen.IsEnabled = false;
+            PrgAbgabe.Visibility = Visibility.Collapsed;
+            DokEingabe.KannAblegen = false;
             return;
         }
 
         List<Dokument> dokumente = _dokumentService.GetByFach(fach.Id);
 
         GrdDokumente.ItemsSource = dokumente;
-        BtnDokumentHinzufuegen.IsEnabled = true;
+        DokEingabe.KannAblegen = true;
 
         int offen = _dokumentService.ZaehleOffene(dokumente);
         TxtFachUntertitel.Text = string.IsNullOrWhiteSpace(fach.Lehrperson)
@@ -157,9 +157,20 @@ public partial class MainWindow : Window
             : $"{fach.Name} · {fach.Lehrperson}";
         TxtDokumentAnzahl.Text = $"{dokumente.Count} Dokumente · {offen} offen";
         TxtKeineDokumente.Visibility = dokumente.Count == 0 ? Visibility.Visible : Visibility.Collapsed;
+
+        // Fortschrittsbalken: Anteil der abgegebenen Dokumente in diesem Fach.
+        int abgegeben = dokumente.Count - offen;
+        PrgAbgabe.Maximum = Math.Max(dokumente.Count, 1);
+        PrgAbgabe.Value = abgegeben;
+        PrgAbgabe.ToolTip = $"{abgegeben} von {dokumente.Count} abgegeben";
+        PrgAbgabe.Visibility = dokumente.Count == 0 ? Visibility.Collapsed : Visibility.Visible;
     }
 
-    private void BtnDokumentHinzufuegen_Click(object sender, RoutedEventArgs e)
+    /// <summary>
+    /// Reagiert auf das Ablegen-Ereignis des UserControls DokumentEingabe:
+    /// Eingaben aus dem Control lesen und über den Service speichern.
+    /// </summary>
+    private void DokEingabe_Ablegen(object? sender, EventArgs e)
     {
         if (LstFaecher.SelectedItem is not Fach fach)
         {
@@ -167,21 +178,19 @@ public partial class MainWindow : Window
             return;
         }
 
-        var titel = TxtDokTitel.Text.Trim();
+        var titel = DokEingabe.Titel;
 
         try
         {
             Dokument dokument = _dokumentService.Hinzufuegen(
                 titel,
-                (CmbTyp.SelectedItem as ComboBoxItem)?.Content?.ToString(),
-                TxtDateipfad.Text,
-                DpFrist.SelectedDate,
+                DokEingabe.Typ,
+                DokEingabe.Dateipfad,
+                DokEingabe.Frist,
                 fach.Id);
 
-            TxtDokTitel.Clear();
-            TxtDateipfad.Clear();
-            DpFrist.SelectedDate = null;
-            TxtDokTitel.Focus();
+            DokEingabe.Leeren();
+            DokEingabe.FokusAufTitel();
 
             LadeFaecher(fach.Id);   // aktualisiert auch den Dokumentenzähler im Fach
             LadeFristen();
@@ -192,33 +201,11 @@ public partial class MainWindow : Window
         catch (ValidierungsException ex)
         {
             Hinweis(ex.Message);
-            TxtDokTitel.Focus();
+            DokEingabe.FokusAufTitel();
         }
         catch (Exception ex)
         {
             Fehler("Das Dokument konnte nicht gespeichert werden.", ex);
-        }
-    }
-
-    private void TxtDokTitel_KeyDown(object sender, KeyEventArgs e)
-    {
-        if (e.Key == Key.Enter)
-            BtnDokumentHinzufuegen_Click(sender, e);
-    }
-
-    private void BtnDateiWaehlen_Click(object sender, RoutedEventArgs e)
-    {
-        var dialog = new OpenFileDialog
-        {
-            Title = "Datei verknüpfen",
-            Filter = "Alle Dateien (*.*)|*.*"
-        };
-
-        if (dialog.ShowDialog(this) == true)
-        {
-            TxtDateipfad.Text = dialog.FileName;
-            if (TxtDokTitel.Text.Trim().Length == 0)
-                TxtDokTitel.Text = System.IO.Path.GetFileNameWithoutExtension(dialog.FileName);
         }
     }
 
@@ -299,6 +286,50 @@ public partial class MainWindow : Window
         {
             Fehler("Der Status konnte nicht geändert werden.", ex);
         }
+    }
+
+    // ==================== Menü ====================
+
+    private void MnuAktualisieren_Click(object sender, RoutedEventArgs e)
+    {
+        try
+        {
+            LadeFaecher();
+            LadeFristen();
+            Status("Ansicht aktualisiert.");
+        }
+        catch (Exception ex)
+        {
+            Fehler("Die Daten konnten nicht geladen werden.", ex);
+        }
+    }
+
+    private void MnuBeenden_Click(object sender, RoutedEventArgs e)
+    {
+        Close();
+    }
+
+    private void MnuNeuesFach_Click(object sender, RoutedEventArgs e)
+    {
+        TxtNeuesFach.Focus();
+    }
+
+    private void MnuNeuesDokument_Click(object sender, RoutedEventArgs e)
+    {
+        if (LstFaecher.SelectedItem is not Fach)
+        {
+            Hinweis("Wähle zuerst ein Fach aus.");
+            return;
+        }
+
+        DokEingabe.FokusAufTitel();
+    }
+
+    private void MnuUeber_Click(object sender, RoutedEventArgs e)
+    {
+        MessageBox.Show(this,
+            "SchulApp – Dokumente und Fristen\n\nFächer verwalten, Dokumente ablegen und Abgabefristen im Blick behalten.",
+            "Über SchulApp", MessageBoxButton.OK, MessageBoxImage.Information);
     }
 
     // ==================== Hilfsmethoden ====================

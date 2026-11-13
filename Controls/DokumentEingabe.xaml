@@ -1,0 +1,75 @@
+<UserControl x:Class="SchulApp.Controls.DokumentEingabe"
+             xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml">
+
+    <!-- Eingabemaske für Entität 2 (Dokument). Die Styles kommen aus App.xaml,
+         damit das UserControl in jedem Fenster gleich aussieht. -->
+    <Border Background="{StaticResource Fuellung}" CornerRadius="12"
+            Padding="14">
+        <StackPanel>
+            <Grid>
+                <Grid.ColumnDefinitions>
+                    <ColumnDefinition Width="*"/>
+                    <ColumnDefinition Width="10"/>
+                    <ColumnDefinition Width="170"/>
+                    <ColumnDefinition Width="10"/>
+                    <ColumnDefinition Width="150"/>
+                </Grid.ColumnDefinitions>
+
+                <StackPanel Grid.Column="0">
+                    <TextBlock Text="TITEL" Style="{StaticResource Feldtitel}"/>
+                    <TextBox x:Name="TxtDokTitel" Style="{StaticResource Feld}"
+                             KeyDown="TxtDokTitel_KeyDown"/>
+                </StackPanel>
+
+                <StackPanel Grid.Column="2">
+                    <TextBlock Text="TYP" Style="{StaticResource Feldtitel}"/>
+                    <Border Style="{StaticResource FeldHuelle}">
+                        <ComboBox x:Name="CmbTyp" BorderThickness="0" Background="Transparent"
+                                  FontSize="13" VerticalContentAlignment="Center"
+                                  SelectedIndex="0">
+                            <ComboBoxItem Content="Auftrag"/>
+                            <ComboBoxItem Content="Prüfung"/>
+                            <ComboBoxItem Content="Notizen"/>
+                            <ComboBoxItem Content="Skript"/>
+                            <ComboBoxItem Content="Projekt"/>
+                        </ComboBox>
+                    </Border>
+                </StackPanel>
+
+                <StackPanel Grid.Column="4">
+                    <TextBlock Text="FRIST (OPTIONAL)" Style="{StaticResource Feldtitel}"/>
+                    <Border Style="{StaticResource FeldHuelle}">
+                        <DatePicker x:Name="DpFrist" BorderThickness="0"
+                                    Background="Transparent" FontSize="13"
+                                    VerticalContentAlignment="Center"/>
+                    </Border>
+                </StackPanel>
+            </Grid>
+
+            <Grid Margin="0,12,0,0">
+                <Grid.ColumnDefinitions>
+                    <ColumnDefinition Width="*"/>
+                    <ColumnDefinition Width="10"/>
+                    <ColumnDefinition Width="Auto"/>
+                    <ColumnDefinition Width="10"/>
+                    <ColumnDefinition Width="Auto"/>
+                </Grid.ColumnDefinitions>
+
+                <StackPanel Grid.Column="0">
+                    <TextBlock Text="DATEIPFAD (OPTIONAL)" Style="{StaticResource Feldtitel}"/>
+                    <TextBox x:Name="TxtDateipfad" Style="{StaticResource Feld}"/>
+                </StackPanel>
+
+                <Button x:Name="BtnDateiWaehlen" Grid.Column="2" Content="Datei wählen"
+                        Style="{StaticResource ButtonLeise}" VerticalAlignment="Bottom"
+                        Click="BtnDateiWaehlen_Click"/>
+
+                <Button x:Name="BtnDokumentHinzufuegen" Grid.Column="4"
+                        Content="Dokument ablegen"
+                        Style="{StaticResource ButtonPrimaer}" VerticalAlignment="Bottom"
+                        Click="BtnDokumentHinzufuegen_Click"/>
+            </Grid>
+        </StackPanel>
+    </Border>
+</UserControl>
