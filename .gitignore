@@ -8,8 +8,21 @@ obj/
 *.user
 *.suo
 
+*.rsuser
+
+# Testergebnisse und Code Coverage
+TestResults/
+*.coverage
+*.coveragexml
+
 # Lokale SQLite-Datenbank (wird beim Start erzeugt)
-app.db
-app.db-shm
-app.db-wal
 *.db
+*.db-shm
+*.db-wal
+*.db-journal
+
+# Lokale Einstellungen mit echten Connection Strings - nur die Vorlage
+# appsettings.Example.json gehört ins Repository.
+appsettings.json
+appsettings.*.json
+!appsettings.Example.json
