@@ -79,7 +79,7 @@
                     <StackPanel VerticalAlignment="Center">
                         <TextBlock Text="SchulApp" FontSize="11.5" FontWeight="SemiBold"
                                    Foreground="{StaticResource Pink}"/>
-                        <TextBlock Text="Dokumente und Fristen" FontSize="15" FontWeight="SemiBold"
+                        <TextBlock Text="Dokumente &amp; Fristen" FontSize="15" FontWeight="SemiBold"
                                    Foreground="{StaticResource TextStark}"/>
                     </StackPanel>
 
