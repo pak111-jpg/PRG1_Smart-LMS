@@ -32,6 +32,55 @@ public class DokumentDataAccess
         return context.Dokumente.ToList();
     }
 
+    /// <summary>
+    /// Gesamtübersicht über alle Fächer: optional nach Titel gesucht, nach Status
+    /// gefiltert und sortiert. Die Abfrage wird Schritt für Schritt zusammengesetzt
+    /// und erst mit ToList() als ein einziges SQL-Statement ausgeführt.
+    /// </summary>
+    public List<Dokument> Suche(string suchtext, DokumentFilter filter, DokumentSortierung sortierung)
+    {
+        var heute = DateTime.Today.ToString("yyyy-MM-dd");
+
+        using var context = new AppDbContext();
+
+        IQueryable<Dokument> abfrage = context.Dokumente.Include(d => d.Fach);
+
+        if (!string.IsNullOrWhiteSpace(suchtext))
+        {
+            // LIKE ignoriert in SQLite die Gross-/Kleinschreibung nur für A-Z. Damit auch
+            // Umlaute gefunden werden ("PRÜF" findet "Prüfung"), wird zusätzlich mit der
+            // klein- und der grossgeschriebenen Variante des Suchtexts verglichen.
+            var muster = $"%{suchtext.Trim()}%";
+            var musterKlein = muster.ToLower();
+            var musterGross = muster.ToUpper();
+            abfrage = abfrage.Where(d => EF.Functions.Like(d.Titel, muster)
+                                         || EF.Functions.Like(d.Titel, musterKlein)
+                                         || EF.Functions.Like(d.Titel, musterGross));
+        }
+
+        abfrage = filter switch
+        {
+            DokumentFilter.Offen => abfrage.Where(d => !d.Abgegeben),
+            DokumentFilter.Abgegeben => abfrage.Where(d => d.Abgegeben),
+            DokumentFilter.Ueberfaellig => abfrage.Where(d => !d.Abgegeben
+                                                              && d.Frist != null && d.Frist != ""
+                                                              && string.Compare(d.Frist, heute) < 0),
+            _ => abfrage
+        };
+
+        abfrage = sortierung switch
+        {
+            DokumentSortierung.Titel => abfrage.OrderBy(d => d.Titel),
+            DokumentSortierung.Fach => abfrage.OrderBy(d => d.Fach!.Name).ThenBy(d => d.Titel),
+            _ => abfrage
+                .OrderBy(d => d.Frist == null || d.Frist == "")   // Dokumente ohne Frist ans Ende
+                .ThenBy(d => d.Frist)
+                .ThenBy(d => d.Titel)
+        };
+
+        return abfrage.ToList();
+    }
+
     public Dokument? GetById(int id)
     {
         using var context = new AppDbContext();
