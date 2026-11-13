@@ -75,40 +75,58 @@ Vorschlag für die Pull-Request-Beschreibung:
 
 ## B4 - Merge-Konflikt provozieren und lösen
 
-Noch nicht durchgeführt. Vorgehen (verändert `main` erst beim letzten Schritt):
+Durchgeführt am 13.11.2026 an der Zeile mit dem Untertitel in der Kopfleiste
+(`MainWindow.xaml`, Zeile 82). Ausgangstext auf `main`: `Text="Dokumente und Fristen"`.
+
+| Schritt | Branch | Commit | Inhalt |
+|---------|--------|--------|--------|
+| Variante A | `feature/k5-konflikt-a` | `d3d1a70` | Zeile geändert auf `Text="Dokumente &amp; Fristen"` (angezeigt: "Dokumente & Fristen") |
+| Variante B | `feature/k5-konflikt-b` | `1c30aa1` | dieselbe Zeile geändert auf `Text="Unterlagen und Fristen"` |
+| Merge | `feature/k5-konflikt-a` | `62bf24c` | `git merge feature/k5-konflikt-b` meldete `CONFLICT (content)` in `MainWindow.xaml`; Konflikt gelöst und Merge committet |
+
+**Konfliktstelle:**
 
 ```
-git switch main
-git pull
-git switch -c feature/k5-konflikt-a
+<<<<<<< HEAD
+                        <TextBlock Text="Dokumente &amp; Fristen" FontSize="15" FontWeight="SemiBold"
+=======
+                        <TextBlock Text="Unterlagen und Fristen" FontSize="15" FontWeight="SemiBold"
+>>>>>>> feature/k5-konflikt-b
 ```
 
-In `MainWindow.xaml` die Zeile mit `Text="Dokumente und Fristen"` (Kopfleiste) ändern,
-z. B. auf `Text="Dokumente & Fristen"`, dann:
+Oberhalb von `=======` steht die Version des aktuellen Branches (`HEAD`, Variante A),
+unterhalb die Version des hereingeholten Branches (Variante B). Beide Branches hatten
+dieselbe Zeile gegenüber `main` unterschiedlich geändert - deshalb konnte Git nicht
+selbst entscheiden.
+
+**Mergetool:** Merge-Editor von Visual Studio Code. Der Screenshot zeigt den offenen
+Konflikt vor der Entscheidung: oben links "Incoming" (Variante B, Commit `1c30aa1`),
+oben rechts "Current" (Variante A, Commit `d3d1a70`), unten das Resultat, in dem zu
+diesem Zeitpunkt noch der alte Text von `main` steht ("1 Conflict Remaining").
+
+![Merge-Konflikt im Merge-Editor von VS Code](images/k5-merge-konflikt.png)
+
+**Gewählte Version:** Variante A, "Dokumente & Fristen" ("Accept Current").
+
+**Begründung:** Die App verwendet überall den Begriff "Dokumente" (Menü, Tabelle,
+Schaltfläche "Dokument ablegen"). Variante B hätte mit "Unterlagen" einen zweiten
+Begriff für dieselbe Sache eingeführt; Variante A bleibt beim eingeführten Begriff und
+ist nur kürzer.
+
+**Nachweis im Git-Verlauf:**
 
 ```
-git commit -am "feat(ui): change header subtitle (variant a)"
-git switch main
-git switch -c feature/k5-konflikt-b
+git log --graph --oneline feature/k5-konflikt-a
+git show d3d1a70 -- MainWindow.xaml
+git show 1c30aa1 -- MainWindow.xaml
 ```
 
-Dieselbe Zeile anders ändern, z. B. auf `Text="Unterlagen und Fristen"`, dann:
+Der Graph zeigt, dass `d3d1a70` und `1c30aa1` vom selben Stand von `main` abzweigen und
+im Merge-Commit `62bf24c` wieder zusammenlaufen; die beiden `git show` zeigen, dass
+beide dieselbe Zeile ändern.
 
-```
-git commit -am "feat(ui): change header subtitle (variant b)"
-git switch feature/k5-konflikt-a
-git merge feature/k5-konflikt-b
-```
-
-Git meldet jetzt den Konflikt. Auflösen mit `git mergetool` oder in Visual Studio,
-danach `git commit`. Anschliessend den Branch pushen und per Pull Request mergen (oder
-die Übungsbranches wieder löschen, wenn der Text nicht geändert werden soll).
-
-Dokumentation:
-
-- Konfliktstelle (Marker `<<<<<<<`, `=======`, `>>>>>>>`): _TODO Team_
-- Gewählte Version und Begründung: _TODO Team_
-- Verwendetes Mergetool: _TODO Team_
+- Pull Request nach `main`: _TODO Team: Link_
+- Grösste Hürde und was ihr daraus mitnehmt: _TODO Team_
 
 ## Vertiefung: Lernweg dokumentieren
 
