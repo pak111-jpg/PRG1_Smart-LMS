@@ -64,6 +64,7 @@
                     </MenuItem>
                     <MenuItem Header="D_okument">
                         <MenuItem Header="_Neues Dokument" Click="MnuNeuesDokument_Click"/>
+                        <MenuItem Header="_Alle Dokumente…" Click="MnuAlleDokumente_Click"/>
                     </MenuItem>
                     <MenuItem Header="_Auswertung">
                         <MenuItem Header="_Abgabestand pro Fach…" Click="MnuAuswertung_Click"/>

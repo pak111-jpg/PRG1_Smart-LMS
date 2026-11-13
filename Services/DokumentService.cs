@@ -31,6 +31,15 @@ public class DokumentService
         return _dataAccess.GetOffeneFristen();
     }
 
+    /// <summary>
+    /// Gesamtübersicht aller Dokumente über alle Fächer - gesucht, gefiltert und
+    /// sortiert. Ein leerer Suchtext bedeutet "nicht nach Titel einschränken".
+    /// </summary>
+    public List<Dokument> Suche(string? suchtext, DokumentFilter filter, DokumentSortierung sortierung)
+    {
+        return _dataAccess.Suche(suchtext?.Trim() ?? string.Empty, filter, sortierung);
+    }
+
     public int ZaehleOffene(List<Dokument> dokumente)
     {
         return dokumente.Count(d => !d.Abgegeben);

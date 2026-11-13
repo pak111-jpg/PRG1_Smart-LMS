@@ -75,3 +75,40 @@ Add-Migration <SprechenderName>
 ```
 
 `Update-Database` ist nicht nötig - die App führt fehlende Migrations beim Start selbst aus.
+
+## Challenge: Datenbindung ans DataGrid
+
+Das Fenster **Dokument > Alle Dokumente…** (`AlleDokumenteWindow`) zeigt die ganze
+Tabelle `Dokument` über alle Fächer in einem DataGrid.
+
+- **Daten über die Service-Schicht:** Das Code-Behind ruft nur
+  `DokumentService.Suche(suchtext, filter, sortierung)` auf und setzt das Ergebnis als
+  `ItemsSource`. Kein `AppDbContext` und kein `using SchulApp.DataAccess` im Fenster.
+- **Suche, Filter, Sortierung als LINQ-Abfrage:** `DokumentDataAccess.Suche(...)` setzt
+  die Abfrage schrittweise zusammen (`IQueryable<Dokument>`): `Include(d => d.Fach)` für
+  den Fachnamen, `Where` mit `EF.Functions.Like` für die Titelsuche, `Where` je nach
+  Statusfilter (`DokumentFilter`: Alle, Offen, Abgegeben, Überfällig) und `OrderBy` je
+  nach `DokumentSortierung` (Frist, Titel, Fach). Erst `ToList()` schickt ein einziges
+  SQL-Statement an die Datenbank - gefiltert und sortiert wird also in SQLite, nicht im
+  Speicher.
+- **Sortierung im Grid ausgeschaltet** (`CanUserSortColumns="False"`), damit die
+  Reihenfolge wirklich aus der LINQ-Abfrage kommt.
+
+## Reflexion & KI-Protokoll (K2)
+
+Fortsetzung des Protokolls aus `K0_KI_Protokoll.md` und `K1_Schichtenarchitektur.md`.
+
+| Nr | Thema | Prompt (Kernfrage) | Was die KI geliefert hat | Gut / korrigiert | Gelernt |
+|----|-------|--------------------|--------------------------|------------------|---------|
+| K2-1 | Analyse (Prompt 1) | _TODO Team: Prompt aus dem ursprünglichen K2-Umbau_ | _TODO_ | _TODO_ | _TODO_ |
+| K2-2 | Umbau (Prompt 2) | _TODO Team_ | _TODO_ | _TODO_ | _TODO_ |
+| K2-3 | Kontrolle (Prompt 3) | _TODO Team_ | _TODO_ | _TODO_ | _TODO_ |
+| K2-4 | K2 abschliessen (Claude Code) | "Branch ist angelegt, kannst mit K2 weitermachen" - Abgleich des Projekts mit den K2-Aufgaben. | Befund: B1-B4 und die Vertiefung (Include, N+1-Messung) waren vorhanden; offen waren die Challenge (DataGrid) und das KI-Protokoll. | _TODO Team_ | _TODO Team_ |
+| K2-5 | DataGrid mit Filter und Sortierung (Challenge) | Teil von K2-4: ganze Tabelle in einem DataGrid, Daten über die Service-Schicht, Filter/Sortierung als LINQ-Abfrage. | `AlleDokumenteWindow`, `DokumentService.Suche(...)`, `DokumentDataAccess.Suche(...)` mit zusammengesetztem `IQueryable`, Enums `DokumentFilter` und `DokumentSortierung`. | _TODO Team_ | _TODO Team_ |
+
+Fragen aus Kapitel 7 - bitte aus eigener Erfahrung beantworten:
+
+- **Welche Prompts habt ihr verwendet, um den Umstieg auf EF Core zu planen?** _TODO Team_
+- **Was hat die KI beim Umbau auf EF Core gut gemacht - wo musstet ihr korrigieren?** _TODO Team_
+- **Wo wollte die KI zu schnell Interfaces oder ein Repository-Pattern einführen - und wie habt ihr sie zurückgeholt?** _TODO Team_
+- **Was ist am Umgang mit der Datenbank jetzt einfacher als vorher - und was ist (noch) ungewohnt?** _TODO Team_

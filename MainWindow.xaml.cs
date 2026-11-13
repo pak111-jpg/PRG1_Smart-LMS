@@ -325,6 +325,12 @@ public partial class MainWindow : Window
         DokEingabe.FokusAufTitel();
     }
 
+    /// <summary>Öffnet die Gesamtübersicht aller Dokumente mit Suche, Filter und Sortierung.</summary>
+    private void MnuAlleDokumente_Click(object sender, RoutedEventArgs e)
+    {
+        new AlleDokumenteWindow { Owner = this }.ShowDialog();
+    }
+
     /// <summary>Öffnet die Abgabe-Auswertung (AuswertungService) als Dialog.</summary>
     private void MnuAuswertung_Click(object sender, RoutedEventArgs e)
     {
