@@ -11,7 +11,9 @@ namespace SchulApp.Services;
 /// </summary>
 public class AuswertungService
 {
-    private const string GesamtBezeichnung = "Alle Fächer";
+    public const string GesamtBezeichnung = "Alle Fächer";
+
+    private const double HundertProzent = 100.0;
 
     private readonly IFachRepository _fachRepository;
     private readonly IDokumentRepository _dokumentRepository;
@@ -41,11 +43,12 @@ public class AuswertungService
 
     private static FachAuswertungDto Berechne(string bezeichnung, IEnumerable<Dokument> dokumente)
     {
-        List<Dokument> liste = dokumente.ToList();
+        var liste = dokumente.ToList();
+        DateTime heute = DateTime.Today;
 
         int gesamt = liste.Count;
-        int abgegeben = liste.Count(d => d.Abgegeben);
-        int prozent = gesamt == 0 ? 0 : (int)Math.Round(100.0 * abgegeben / gesamt);
+        int abgegeben = liste.Count(dokument => dokument.Abgegeben);
+        int prozentAbgegeben = gesamt == 0 ? 0 : (int)Math.Round(HundertProzent * abgegeben / gesamt);
 
         return new FachAuswertungDto
         {
@@ -53,9 +56,9 @@ public class AuswertungService
             Gesamt = gesamt,
             Abgegeben = abgegeben,
             Offen = gesamt - abgegeben,
-            Ueberfaellig = liste.Count(d => d.IstUeberfaellig),
-            ProzentAbgegeben = prozent,
-            ProzentAnzeige = gesamt == 0 ? "–" : $"{prozent} %"
+            Ueberfaellig = liste.Count(dokument => dokument.IstUeberfaelligAm(heute)),
+            ProzentAbgegeben = prozentAbgegeben,
+            ProzentAnzeige = gesamt == 0 ? Anzeigetexte.KeinWert : $"{prozentAbgegeben} %"
         };
     }
 }

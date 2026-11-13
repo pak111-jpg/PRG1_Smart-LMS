@@ -9,8 +9,6 @@ namespace SchulApp.Services;
 /// </summary>
 public class StartService
 {
-    private const string FristFormat = "yyyy-MM-dd";
-
     private readonly IFachRepository _fachRepository;
     private readonly IDokumentRepository _dokumentRepository;
 
@@ -23,44 +21,44 @@ public class StartService
     public void Initialisiere()
     {
         DbInitializer.Initialize();
-        BeispieldatenAnlegen();
+        LegeBeispieldatenAn();
     }
 
     /// <summary>
-    /// Legt beim allerersten Start ein paar Beispieldaten an, damit die Oberfläche
-    /// nicht leer startet. Diese Methode kann ersatzlos gelöscht werden.
+    /// Legt Beispieldaten an, solange es noch kein Fach gibt - damit die Oberfläche
+    /// beim allerersten Start nicht leer ist.
     /// </summary>
-    private void BeispieldatenAnlegen()
+    public void LegeBeispieldatenAn()
     {
         if (_fachRepository.GetAll().Count > 0) return;
 
-        var heute = DateTime.Today;
+        DateTime heute = DateTime.Today;
 
-        int prg = FachAnlegen("PRG I", "M. Keller");
-        int ism = FachAnlegen("ISM", "S. Brunner");
-        int lds = FachAnlegen("LDS II", "A. Marti");
+        int programmierenId = LegeFachAn("PRG I", "M. Keller");
+        int sicherheitId = LegeFachAn("ISM", "S. Brunner");
+        int datenstrukturenId = LegeFachAn("LDS II", "A. Marti");
 
-        DokumentAnlegen("Übung 4 – Schleifen", "Auftrag", heute.AddDays(-2), prg);
-        DokumentAnlegen("Projektdokumentation", "Projekt", heute.AddDays(4), prg);
-        DokumentAnlegen("Zusammenfassung Kapitel 1–3", "Notizen", null, prg);
-        DokumentAnlegen("Fallstudie Datenschutz", "Auftrag", heute.AddDays(1), ism);
-        DokumentAnlegen("Vorbereitung Prüfung", "Prüfung", heute.AddDays(11), lds);
+        LegeDokumentAn("Übung 4 – Schleifen", DokumentTypen.Auftrag, heute.AddDays(-2), programmierenId);
+        LegeDokumentAn("Projektdokumentation", DokumentTypen.Projekt, heute.AddDays(4), programmierenId);
+        LegeDokumentAn("Zusammenfassung Kapitel 1–3", DokumentTypen.Notizen, null, programmierenId);
+        LegeDokumentAn("Fallstudie Datenschutz", DokumentTypen.Auftrag, heute.AddDays(1), sicherheitId);
+        LegeDokumentAn("Vorbereitung Prüfung", DokumentTypen.Pruefung, heute.AddDays(11), datenstrukturenId);
     }
 
-    private int FachAnlegen(string name, string lehrperson)
+    private int LegeFachAn(string name, string lehrperson)
     {
         var fach = new Fach { Name = name, Lehrperson = lehrperson };
         _fachRepository.Add(fach);
         return fach.Id;
     }
 
-    private void DokumentAnlegen(string titel, string typ, DateTime? frist, int fachId)
+    private void LegeDokumentAn(string titel, string typ, DateTime? frist, int fachId)
     {
         _dokumentRepository.Add(new Dokument
         {
             Titel = titel,
             Typ = typ,
-            Frist = frist?.ToString(FristFormat),
+            Frist = frist?.ToString(Dokument.FristFormat),
             FachId = fachId
         });
     }

@@ -9,14 +9,12 @@ namespace SchulApp.DataAccess;
 /// </summary>
 public class FachRepository : Repository<Fach>, IFachRepository
 {
-    // ---------- READ ----------
-
     /// <summary>Alle Fächer, alphabetisch.</summary>
     public override List<Fach> GetAll()
     {
         using var context = new AppDbContext();
         return context.Faecher
-            .OrderBy(f => f.Name)
+            .OrderBy(fach => fach.Name)
             .ToList();
     }
 
@@ -28,8 +26,8 @@ public class FachRepository : Repository<Fach>, IFachRepository
     {
         using var context = new AppDbContext();
         return context.Faecher
-            .Include(f => f.Dokumente)
-            .OrderBy(f => f.Name)
+            .Include(fach => fach.Dokumente)
+            .OrderBy(fach => fach.Name)
             .ToList();
     }
 
@@ -38,16 +36,14 @@ public class FachRepository : Repository<Fach>, IFachRepository
         name = name.Trim();
 
         using var context = new AppDbContext();
-        return context.Faecher.Any(f => f.Name == name && f.Id != ausserId);
+        return context.Faecher.Any(fach => fach.Name == name && fach.Id != ausserId);
     }
-
-    // ---------- CREATE / UPDATE ----------
 
     public override void Add(Fach entity)
     {
         Bereinige(entity);
         if (string.IsNullOrWhiteSpace(entity.Erstellt))
-            entity.Erstellt = DateTime.Now.ToString("yyyy-MM-dd HH:mm:ss");
+            entity.Erstellt = DateTime.Now.ToString(Fach.ErstelltFormat);
 
         base.Add(entity);
     }
@@ -60,8 +56,6 @@ public class FachRepository : Repository<Fach>, IFachRepository
 
     // Delete: Die Dokumente eines Fachs löscht die Datenbank über die Beziehung
     // gleich mit (ON DELETE CASCADE, siehe AppDbContext).
-
-    // ---------- Hilfsmethode ----------
 
     /// <summary>Einheitliche Schreibweise vor dem Speichern: Texte ohne Rand-Leerzeichen.</summary>
     private static void Bereinige(Fach fach)

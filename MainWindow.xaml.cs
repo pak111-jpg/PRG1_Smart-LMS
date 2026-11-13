@@ -30,27 +30,25 @@ public partial class MainWindow : Window
         _auswertungService = auswertungService;
     }
 
-    // ==================== Start ====================
-
     private void Window_Loaded(object sender, RoutedEventArgs e)
     {
         try
         {
-            _startService.Initialisiere();   // Datenbank + Beispieldaten beim allerersten Start
+            // Legt die Datenbank und beim allerersten Start die Beispieldaten an.
+            _startService.Initialisiere();
 
+            Eingabemaske.SetzeTypen(_dokumentService.GetDokumentTypen());
             TxtHeute.Text = DateTime.Today.ToString("dddd, dd. MMMM yyyy");
 
             LadeFaecher();
             LadeFristen();
-            Status("Bereit.");
+            ZeigeStatus("Bereit.");
         }
         catch (Exception ex)
         {
-            Fehler("Die Datenbank konnte nicht geöffnet werden.", ex);
+            ZeigeFehler("Die Datenbank konnte nicht geöffnet werden.", ex);
         }
     }
-
-    // ==================== Fächer ====================
 
     private void LadeFaecher(int auswaehlenId = 0)
     {
@@ -90,17 +88,17 @@ public partial class MainWindow : Window
             TxtNeuesFach.Focus();
 
             LadeFaecher(neueId);
-            Status($"Fach \"{name}\" angelegt.");
+            ZeigeStatus($"Fach \"{name}\" angelegt.");
         }
         catch (ValidierungsException ex)
         {
-            Hinweis(ex.Message);
+            ZeigeHinweis(ex.Message);
             TxtNeuesFach.SelectAll();
             TxtNeuesFach.Focus();
         }
         catch (Exception ex)
         {
-            Fehler("Das Fach konnte nicht gespeichert werden.", ex);
+            ZeigeFehler("Das Fach konnte nicht gespeichert werden.", ex);
         }
     }
 
@@ -108,7 +106,7 @@ public partial class MainWindow : Window
     {
         if (LstFaecher.SelectedItem is not FachDto fach)
         {
-            Hinweis("Wähle links ein Fach aus.");
+            ZeigeHinweis("Wähle links ein Fach aus.");
             return;
         }
 
@@ -125,11 +123,11 @@ public partial class MainWindow : Window
             _fachService.Loeschen(fach.Id);
             LadeFaecher();
             LadeFristen();
-            Status($"Fach \"{fach.Name}\" gelöscht.");
+            ZeigeStatus($"Fach \"{fach.Name}\" gelöscht.");
         }
         catch (Exception ex)
         {
-            Fehler("Das Fach konnte nicht gelöscht werden.", ex);
+            ZeigeFehler("Das Fach konnte nicht gelöscht werden.", ex);
         }
     }
 
@@ -138,8 +136,6 @@ public partial class MainWindow : Window
         if (e.Key == Key.Enter)
             BtnFachHinzufuegen_Click(sender, e);
     }
-
-    // ==================== Dokumente ====================
 
     private void LadeDokumente(FachDto? fach)
     {
@@ -150,20 +146,20 @@ public partial class MainWindow : Window
             TxtDokumentAnzahl.Text = string.Empty;
             TxtKeineDokumente.Visibility = Visibility.Collapsed;
             PrgAbgabe.Visibility = Visibility.Collapsed;
-            DokEingabe.KannAblegen = false;
+            Eingabemaske.IstAblegenMoeglich = false;
             return;
         }
 
         List<DokumentDto> dokumente = _dokumentService.GetByFach(fach.Id);
 
         GrdDokumente.ItemsSource = dokumente;
-        DokEingabe.KannAblegen = true;
+        Eingabemaske.IstAblegenMoeglich = true;
 
         int offen = _dokumentService.ZaehleOffene(dokumente);
         TxtFachUntertitel.Text = string.IsNullOrWhiteSpace(fach.Lehrperson)
             ? fach.Name
             : $"{fach.Name} · {fach.Lehrperson}";
-        TxtDokumentAnzahl.Text = $"{dokumente.Count} Dokumente · {offen} offen";
+        TxtDokumentAnzahl.Text = $"{Anzeigetexte.AnzahlDokumente(dokumente.Count)} · {offen} offen";
         TxtKeineDokumente.Visibility = dokumente.Count == 0 ? Visibility.Visible : Visibility.Collapsed;
 
         // Fortschrittsbalken: Anteil der abgegebenen Dokumente in diesem Fach.
@@ -178,42 +174,43 @@ public partial class MainWindow : Window
     /// Reagiert auf das Ablegen-Ereignis des UserControls DokumentEingabe:
     /// Eingaben aus dem Control lesen und über den Service speichern.
     /// </summary>
-    private void DokEingabe_Ablegen(object? sender, EventArgs e)
+    private void Eingabemaske_Ablegen(object? sender, EventArgs e)
     {
         if (LstFaecher.SelectedItem is not FachDto fach)
         {
-            Hinweis("Wähle zuerst ein Fach aus.");
+            ZeigeHinweis("Wähle zuerst ein Fach aus.");
             return;
         }
 
-        var titel = DokEingabe.Titel;
+        var titel = Eingabemaske.Titel;
 
         try
         {
             DokumentDto dokument = _dokumentService.Hinzufuegen(
                 titel,
-                DokEingabe.Typ,
-                DokEingabe.Dateipfad,
-                DokEingabe.Frist,
+                Eingabemaske.Typ,
+                Eingabemaske.Dateipfad,
+                Eingabemaske.Frist,
                 fach.Id);
 
-            DokEingabe.Leeren();
-            DokEingabe.FokusAufTitel();
+            Eingabemaske.Leeren();
+            Eingabemaske.SetzeFokusAufTitel();
 
-            LadeFaecher(fach.Id);   // aktualisiert auch den Dokumentenzähler im Fach
+            // Lädt auch die Dokumentenliste neu und aktualisiert die Zähler im Fach.
+            LadeFaecher(fach.Id);
             LadeFristen();
-            Status(dokument.HatFrist
+            ZeigeStatus(dokument.HatFrist
                 ? $"\"{titel}\" abgelegt, Frist {dokument.FristAnzeige}."
                 : $"\"{titel}\" abgelegt.");
         }
         catch (ValidierungsException ex)
         {
-            Hinweis(ex.Message);
-            DokEingabe.FokusAufTitel();
+            ZeigeHinweis(ex.Message);
+            Eingabemaske.SetzeFokusAufTitel();
         }
         catch (Exception ex)
         {
-            Fehler("Das Dokument konnte nicht gespeichert werden.", ex);
+            ZeigeFehler("Das Dokument konnte nicht gespeichert werden.", ex);
         }
     }
 
@@ -227,18 +224,19 @@ public partial class MainWindow : Window
 
         try
         {
-            bool neuerStatus = _dokumentService.AbgabeUmschalten(dokument);
+            bool istNeuAbgegeben = _dokumentService.AbgabeUmschalten(dokument);
 
-            LadeFaecher();   // aktualisiert Dokumentenliste und den Offen-Zähler im Fach
+            // Lädt auch die Dokumentenliste neu und aktualisiert die Zähler im Fach.
+            LadeFaecher();
             LadeFristen();
 
-            Status(neuerStatus
+            ZeigeStatus(istNeuAbgegeben
                 ? $"\"{dokument.Titel}\" ist abgegeben."
                 : $"\"{dokument.Titel}\" ist wieder offen.");
         }
         catch (Exception ex)
         {
-            Fehler("Der Status konnte nicht geändert werden.", ex);
+            ZeigeFehler("Der Status konnte nicht geändert werden.", ex);
         }
     }
 
@@ -255,15 +253,13 @@ public partial class MainWindow : Window
             _dokumentService.Loeschen(dokument.Id);
             LadeFaecher((LstFaecher.SelectedItem as FachDto)?.Id ?? 0);
             LadeFristen();
-            Status($"\"{dokument.Titel}\" gelöscht.");
+            ZeigeStatus($"\"{dokument.Titel}\" gelöscht.");
         }
         catch (Exception ex)
         {
-            Fehler("Das Dokument konnte nicht gelöscht werden.", ex);
+            ZeigeFehler("Das Dokument konnte nicht gelöscht werden.", ex);
         }
     }
-
-    // ==================== Fristenübersicht ====================
 
     private void LadeFristen()
     {
@@ -286,17 +282,16 @@ public partial class MainWindow : Window
         try
         {
             _dokumentService.MarkiereAlsAbgegeben(dokument.Id);
-            LadeFaecher();   // aktualisiert Dokumentenliste und den Offen-Zähler im Fach
+            // Lädt auch die Dokumentenliste neu und aktualisiert die Zähler im Fach.
+            LadeFaecher();
             LadeFristen();
-            Status($"\"{dokument.Titel}\" ist abgegeben.");
+            ZeigeStatus($"\"{dokument.Titel}\" ist abgegeben.");
         }
         catch (Exception ex)
         {
-            Fehler("Der Status konnte nicht geändert werden.", ex);
+            ZeigeFehler("Der Status konnte nicht geändert werden.", ex);
         }
     }
-
-    // ==================== Menü ====================
 
     private void MnuAktualisieren_Click(object sender, RoutedEventArgs e)
     {
@@ -304,11 +299,11 @@ public partial class MainWindow : Window
         {
             LadeFaecher();
             LadeFristen();
-            Status("Ansicht aktualisiert.");
+            ZeigeStatus("Ansicht aktualisiert.");
         }
         catch (Exception ex)
         {
-            Fehler("Die Daten konnten nicht geladen werden.", ex);
+            ZeigeFehler("Die Daten konnten nicht geladen werden.", ex);
         }
     }
 
@@ -326,11 +321,11 @@ public partial class MainWindow : Window
     {
         if (LstFaecher.SelectedItem is not FachDto)
         {
-            Hinweis("Wähle zuerst ein Fach aus.");
+            ZeigeHinweis("Wähle zuerst ein Fach aus.");
             return;
         }
 
-        DokEingabe.FokusAufTitel();
+        Eingabemaske.SetzeFokusAufTitel();
     }
 
     /// <summary>Öffnet die Gesamtübersicht aller Dokumente mit Suche, Filter und Sortierung.</summary>
@@ -352,20 +347,20 @@ public partial class MainWindow : Window
             "Über SchulApp", MessageBoxButton.OK, MessageBoxImage.Information);
     }
 
-    // ==================== Hilfsmethoden ====================
-
-    private void Status(string text) =>
-        TxtStatus.Text = $"{DateTime.Now:HH:mm}  ·  {text}";
-
-    private void Hinweis(string text)
+    private void ZeigeStatus(string text)
     {
-        Status(text);
+        TxtStatus.Text = $"{DateTime.Now:HH:mm}  ·  {text}";
+    }
+
+    private void ZeigeHinweis(string text)
+    {
+        ZeigeStatus(text);
         MessageBox.Show(this, text, "Hinweis", MessageBoxButton.OK, MessageBoxImage.Information);
     }
 
-    private void Fehler(string text, Exception ex)
+    private void ZeigeFehler(string text, Exception ex)
     {
-        Status(text);
+        ZeigeStatus(text);
         MessageBox.Show(this, $"{text}\n\n{ex.Message}", "Fehler",
             MessageBoxButton.OK, MessageBoxImage.Error);
     }

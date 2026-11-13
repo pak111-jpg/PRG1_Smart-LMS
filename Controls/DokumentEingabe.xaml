@@ -18,8 +18,8 @@
 
                 <StackPanel Grid.Column="0">
                     <TextBlock Text="TITEL" Style="{StaticResource Feldtitel}"/>
-                    <TextBox x:Name="TxtDokTitel" Style="{StaticResource Feld}"
-                             KeyDown="TxtDokTitel_KeyDown"/>
+                    <TextBox x:Name="TxtDokumentTitel" Style="{StaticResource Feld}"
+                             KeyDown="TxtDokumentTitel_KeyDown"/>
                 </StackPanel>
 
                 <StackPanel Grid.Column="2">
@@ -27,13 +27,7 @@
                     <Border Style="{StaticResource FeldHuelle}">
                         <ComboBox x:Name="CmbTyp" BorderThickness="0" Background="Transparent"
                                   FontSize="13" VerticalContentAlignment="Center"
-                                  SelectedIndex="0">
-                            <ComboBoxItem Content="Auftrag"/>
-                            <ComboBoxItem Content="Prüfung"/>
-                            <ComboBoxItem Content="Notizen"/>
-                            <ComboBoxItem Content="Skript"/>
-                            <ComboBoxItem Content="Projekt"/>
-                        </ComboBox>
+                                  SelectedIndex="0"/>
                     </Border>
                 </StackPanel>
 
