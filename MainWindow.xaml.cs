@@ -325,6 +325,12 @@ public partial class MainWindow : Window
         DokEingabe.FokusAufTitel();
     }
 
+    /// <summary>Öffnet die Abgabe-Auswertung (AuswertungService) als Dialog.</summary>
+    private void MnuAuswertung_Click(object sender, RoutedEventArgs e)
+    {
+        new AuswertungWindow { Owner = this }.ShowDialog();
+    }
+
     private void MnuUeber_Click(object sender, RoutedEventArgs e)
     {
         MessageBox.Show(this,
