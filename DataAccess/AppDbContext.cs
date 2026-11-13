@@ -5,7 +5,7 @@ namespace SchulApp.DataAccess;
 
 /// <summary>
 /// Zugang zur Datenbank über Entity Framework Core. Ein Context ist für kurze,
-/// abgeschlossene Operationen gedacht: pro DataAccess-Methode mit using erzeugen,
+/// abgeschlossene Operationen gedacht: pro Repository-Methode mit using erzeugen,
 /// nie als dauerhaftes Feld halten.
 /// </summary>
 public class AppDbContext : DbContext
