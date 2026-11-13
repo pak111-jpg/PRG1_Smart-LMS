@@ -168,7 +168,7 @@
                                                            TextTrimming="CharacterEllipsis">
                                                     <Run Text="{Binding LehrpersonAnzeige, Mode=OneWay}"/>
                                                     <Run Text=" · "/>
-                                                    <Run Text="{Binding DokumenteAnzeige, Mode=OneWay}"/>
+                                                    <Run Text="{Binding DokumenteAnzeige, Mode=OneWay}"/><Run Text="{Binding OffenAnzeige, Mode=OneWay}"/>
                                                 </TextBlock>
                                             </StackPanel>
                                         </Grid>
