@@ -1,10 +1,8 @@
-using System.ComponentModel.DataAnnotations.Schema;
-
 namespace SchulApp.Models;
 
 /// <summary>
-/// Entität 1 der 1:N-Beziehung. Reines Datenobjekt (kein ViewModel,
-/// kein INotifyPropertyChanged) – die UI wird nach jeder Änderung neu geladen.
+/// Entität 1 der 1:N-Beziehung. Enthält nur, was in der Tabelle Fach steht,
+/// plus die Navigation Property. Alles für die Anzeige liegt im FachDto.
 /// </summary>
 public class Fach
 {
@@ -13,35 +11,6 @@ public class Fach
     public string Lehrperson { get; set; } = string.Empty;
     public string Erstellt { get; set; } = string.Empty;
 
-    /// <summary>Navigation Property der 1:N-Beziehung: alle Dokumente dieses Fachs.</summary>
+    /// <summary>Navigation Property der 1:N-Beziehung. Nur gefüllt, wenn mit Include() geladen.</summary>
     public ICollection<Dokument> Dokumente { get; set; } = new List<Dokument>();
-
-    /// <summary>
-    /// Anzahl zugehöriger Dokumente - wird von FachDataAccess mitgeladen (nur Anzeige).
-    /// Keine Tabellenspalte, deshalb NotMapped.
-    /// </summary>
-    [NotMapped]
-    public int AnzahlDokumente { get; set; }
-
-    /// <summary>Initialen für den runden Avatar in der Fächerliste, z. B. "PR".</summary>
-    public string Initialen
-    {
-        get
-        {
-            var t = Name.Trim();
-            if (t.Length == 0) return "?";
-            var teile = t.Split(' ', StringSplitOptions.RemoveEmptyEntries);
-            if (teile.Length >= 2)
-                return $"{char.ToUpper(teile[0][0])}{char.ToUpper(teile[1][0])}";
-            return t.Length >= 2 ? t.Substring(0, 2).ToUpperInvariant() : t.ToUpperInvariant();
-        }
-    }
-
-    public string LehrpersonAnzeige =>
-        string.IsNullOrWhiteSpace(Lehrperson) ? "Keine Lehrperson" : Lehrperson;
-
-    public string DokumenteAnzeige =>
-        AnzahlDokumente == 1 ? "1 Dokument" : $"{AnzahlDokumente} Dokumente";
-
-    public override string ToString() => Name;
 }

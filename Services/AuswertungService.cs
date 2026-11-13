@@ -1,51 +1,61 @@
 using SchulApp.DataAccess;
+using SchulApp.Dtos;
 using SchulApp.Models;
 
 namespace SchulApp.Services;
 
 /// <summary>
-/// Zweite, eigenständige Serviceklasse (K1-Challenge): Auswertung des Abgabestands.
-/// Berechnet pro Fach und über alle Fächer, wie viele Dokumente abgegeben, offen
-/// und überfällig sind. Liest nur - und spricht die Datenbank ausschliesslich über
-/// die DataAccess-Klassen an.
+/// Auswertung des Abgabestands: berechnet pro Fach und über alle Fächer, wie
+/// viele Dokumente abgegeben, offen und überfällig sind. Liest nur - und kennt
+/// vom Datenzugriff nur die Interfaces IFachRepository und IDokumentRepository.
 /// </summary>
 public class AuswertungService
 {
     private const string GesamtBezeichnung = "Alle Fächer";
 
-    private readonly FachDataAccess _fachDataAccess = new();
-    private readonly DokumentDataAccess _dokumentDataAccess = new();
+    private readonly IFachRepository _fachRepository;
+    private readonly IDokumentRepository _dokumentRepository;
+
+    public AuswertungService(IFachRepository fachRepository, IDokumentRepository dokumentRepository)
+    {
+        _fachRepository = fachRepository;
+        _dokumentRepository = dokumentRepository;
+    }
 
     /// <summary>
     /// Eine Zeile pro Fach, alphabetisch. Fächer ohne Dokumente erscheinen mit 0,
     /// damit die Auswertung alle Fächer zeigt.
     /// </summary>
-    public List<FachAuswertung> GetAuswertungProFach()
+    public List<FachAuswertungDto> GetAuswertungProFach()
     {
-        List<Fach> faecher = _fachDataAccess.GetAll();
-        List<Dokument> dokumente = _dokumentDataAccess.GetAll();
-
-        return faecher
-            .Select(fach => Berechne(fach.Name, dokumente.Where(d => d.FachId == fach.Id)))
+        return _fachRepository.GetAlleMitDokumenten()
+            .Select(fach => Berechne(fach.Name, fach.Dokumente))
             .ToList();
     }
 
     /// <summary>Summe über alle Fächer - die Fusszeile der Auswertung.</summary>
-    public FachAuswertung GetGesamtauswertung()
+    public FachAuswertungDto GetGesamtauswertung()
     {
-        return Berechne(GesamtBezeichnung, _dokumentDataAccess.GetAll());
+        return Berechne(GesamtBezeichnung, _dokumentRepository.GetAll());
     }
 
-    private static FachAuswertung Berechne(string bezeichnung, IEnumerable<Dokument> dokumente)
+    private static FachAuswertungDto Berechne(string bezeichnung, IEnumerable<Dokument> dokumente)
     {
         List<Dokument> liste = dokumente.ToList();
 
-        return new FachAuswertung
+        int gesamt = liste.Count;
+        int abgegeben = liste.Count(d => d.Abgegeben);
+        int prozent = gesamt == 0 ? 0 : (int)Math.Round(100.0 * abgegeben / gesamt);
+
+        return new FachAuswertungDto
         {
             FachName = bezeichnung,
-            Gesamt = liste.Count,
-            Abgegeben = liste.Count(d => d.Abgegeben),
-            Ueberfaellig = liste.Count(d => d.IstUeberfaellig)
+            Gesamt = gesamt,
+            Abgegeben = abgegeben,
+            Offen = gesamt - abgegeben,
+            Ueberfaellig = liste.Count(d => d.IstUeberfaellig),
+            ProzentAbgegeben = prozent,
+            ProzentAnzeige = gesamt == 0 ? "–" : $"{prozent} %"
         };
     }
 }

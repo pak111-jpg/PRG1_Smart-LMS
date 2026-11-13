@@ -1,12 +1,13 @@
 using SchulApp.DataAccess;
+using SchulApp.Dtos;
 using SchulApp.Models;
 
 namespace SchulApp.Services;
 
 /// <summary>
-/// Business-Logik rund um Dokumente: Ablage, Fristenübersicht und der
-/// Kernprozess "als abgegeben markieren".
-/// Spricht die Datenbank ausschliesslich über DokumentDataAccess an - kein SQL hier.
+/// Business-Logik rund um Dokumente: Ablage, Fristenübersicht, der Kernprozess
+/// "als abgegeben markieren" und das Mapping Dokument -> DokumentDto.
+/// Kennt vom Datenzugriff nur das Interface IDokumentRepository.
 /// </summary>
 public class DokumentService
 {
@@ -15,37 +16,51 @@ public class DokumentService
     /// <summary>Speicherformat der Frist - dadurch sortiert die Datenbank korrekt.</summary>
     private const string FristFormat = "yyyy-MM-dd";
 
-    private readonly DokumentDataAccess _dataAccess = new();
+    private const string FristAnzeigeFormat = "dd.MM.yyyy";
+    private const string KeinWert = "–";
+
+    private readonly IDokumentRepository _repository;
+
+    public DokumentService(IDokumentRepository repository)
+    {
+        _repository = repository;
+    }
 
     // ---------- Lesen ----------
 
     /// <summary>Alle Dokumente eines Fachs: offene zuerst, dann nach Frist, dann nach Titel.</summary>
-    public List<Dokument> GetByFach(int fachId)
+    public List<DokumentDto> GetByFach(int fachId)
     {
-        return _dataAccess.GetByFach(fachId);
+        return _repository.GetByFach(fachId)
+            .Select(ZuDto)
+            .ToList();
     }
 
     /// <summary>Fristenübersicht: offene Dokumente mit Frist, aufsteigend nach Frist.</summary>
-    public List<Dokument> GetOffeneFristen()
+    public List<DokumentDto> GetOffeneFristen()
     {
-        return _dataAccess.GetOffeneFristen();
+        return _repository.GetOffeneFristen()
+            .Select(ZuDto)
+            .ToList();
     }
 
     /// <summary>
     /// Gesamtübersicht aller Dokumente über alle Fächer - gesucht, gefiltert und
     /// sortiert. Ein leerer Suchtext bedeutet "nicht nach Titel einschränken".
     /// </summary>
-    public List<Dokument> Suche(string? suchtext, DokumentFilter filter, DokumentSortierung sortierung)
+    public List<DokumentDto> Suche(string? suchtext, DokumentFilter filter, DokumentSortierung sortierung)
     {
-        return _dataAccess.Suche(suchtext?.Trim() ?? string.Empty, filter, sortierung);
+        return _repository.Suche(suchtext?.Trim() ?? string.Empty, filter, sortierung)
+            .Select(ZuDto)
+            .ToList();
     }
 
-    public int ZaehleOffene(List<Dokument> dokumente)
+    public int ZaehleOffene(List<DokumentDto> dokumente)
     {
         return dokumente.Count(d => !d.Abgegeben);
     }
 
-    public int ZaehleUeberfaellige(List<Dokument> dokumente)
+    public int ZaehleUeberfaellige(List<DokumentDto> dokumente)
     {
         return dokumente.Count(d => d.IstUeberfaellig);
     }
@@ -56,7 +71,7 @@ public class DokumentService
     /// Legt ein neues, offenes Dokument in einem Fach ab und liefert es zurück.
     /// Regeln: Der Titel darf nicht leer sein; ohne Typ gilt "Auftrag".
     /// </summary>
-    public Dokument Hinzufuegen(string titel, string? typ, string? dateipfad, DateTime? frist, int fachId)
+    public DokumentDto Hinzufuegen(string titel, string? typ, string? dateipfad, DateTime? frist, int fachId)
     {
         titel = titel.Trim();
 
@@ -73,13 +88,13 @@ public class DokumentService
             FachId = fachId
         };
 
-        _dataAccess.Add(dokument);
-        return dokument;
+        _repository.Add(dokument);
+        return ZuDto(dokument);
     }
 
     public void Loeschen(int dokumentId)
     {
-        _dataAccess.Delete(dokumentId);
+        _repository.Delete(dokumentId);
     }
 
     // ---------- Kernprozess: Abgabe ----------
@@ -87,16 +102,55 @@ public class DokumentService
     /// <summary>
     /// Schaltet den Abgabestatus eines Dokuments um und liefert den neuen Status zurück.
     /// </summary>
-    public bool AbgabeUmschalten(Dokument dokument)
+    public bool AbgabeUmschalten(DokumentDto dokument)
     {
         bool neuerStatus = !dokument.Abgegeben;
-        _dataAccess.SetAbgegeben(dokument.Id, neuerStatus);
+        _repository.SetAbgegeben(dokument.Id, neuerStatus);
         return neuerStatus;
     }
 
     /// <summary>Markiert ein Dokument als abgegeben - es fällt damit aus der Fristenübersicht.</summary>
     public void MarkiereAlsAbgegeben(int dokumentId)
     {
-        _dataAccess.SetAbgegeben(dokumentId, true);
+        _repository.SetAbgegeben(dokumentId, true);
+    }
+
+    // ---------- Mapping Entity -> DTO ----------
+
+    private static DokumentDto ZuDto(Dokument dokument)
+    {
+        return new DokumentDto
+        {
+            Id = dokument.Id,
+            Titel = dokument.Titel,
+            Typ = dokument.Typ,
+            FachName = dokument.Fach?.Name ?? string.Empty,
+            DateiAnzeige = string.IsNullOrWhiteSpace(dokument.Dateipfad)
+                ? KeinWert
+                : System.IO.Path.GetFileName(dokument.Dateipfad),
+            HatFrist = dokument.HatFrist,
+            FristAnzeige = dokument.FristDatum?.ToString(FristAnzeigeFormat) ?? KeinWert,
+            RestText = BerechneRestText(dokument.FristDatum),
+            Abgegeben = dokument.Abgegeben,
+            IstUeberfaellig = dokument.IstUeberfaellig,
+            StatusZeichen = dokument.Abgegeben ? "✓" : "○",
+            StatusText = dokument.Abgegeben ? "Abgegeben" : "Offen"
+        };
+    }
+
+    /// <summary>Restzeit im Klartext, z. B. "in 3 Tagen" oder "2 Tage überfällig". Ohne Frist leer.</summary>
+    private static string BerechneRestText(DateTime? frist)
+    {
+        if (!frist.HasValue) return string.Empty;
+
+        int tage = (frist.Value - DateTime.Today).Days;
+        return tage switch
+        {
+            < -1 => $"{-tage} Tage überfällig",
+            -1 => "1 Tag überfällig",
+            0 => "heute fällig",
+            1 => "morgen fällig",
+            _ => $"in {tage} Tagen"
+        };
     }
 }

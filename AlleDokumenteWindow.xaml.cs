@@ -1,5 +1,6 @@
 using System.Windows;
 using System.Windows.Controls;
+using SchulApp.Dtos;
 using SchulApp.Models;
 using SchulApp.Services;
 
@@ -12,11 +13,12 @@ namespace SchulApp;
 /// </summary>
 public partial class AlleDokumenteWindow : Window
 {
-    private readonly DokumentService _dokumentService = new();
+    private readonly DokumentService _dokumentService;
 
-    public AlleDokumenteWindow()
+    public AlleDokumenteWindow(DokumentService dokumentService)
     {
         InitializeComponent();
+        _dokumentService = dokumentService;
     }
 
     private void Window_Loaded(object sender, RoutedEventArgs e)
@@ -46,7 +48,7 @@ public partial class AlleDokumenteWindow : Window
             var filter = (DokumentFilter)CmbFilter.SelectedIndex;
             var sortierung = (DokumentSortierung)CmbSortierung.SelectedIndex;
 
-            List<Dokument> dokumente = _dokumentService.Suche(TxtSuche.Text, filter, sortierung);
+            List<DokumentDto> dokumente = _dokumentService.Suche(TxtSuche.Text, filter, sortierung);
 
             GrdAlleDokumente.ItemsSource = dokumente;
             TxtAnzahl.Text = dokumente.Count == 1 ? "1 Dokument" : $"{dokumente.Count} Dokumente";

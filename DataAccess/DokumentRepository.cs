@@ -4,15 +4,14 @@ using SchulApp.Models;
 namespace SchulApp.DataAccess;
 
 /// <summary>
-/// Sämtliche Datenbankzugriffe auf die Tabelle Dokument inkl. Fristenübersicht
-/// und dem Workflow "als abgegeben markieren" - über AppDbContext und LINQ,
-/// ohne SQL-Strings. Pro Methode ein eigener, kurzlebiger Context.
+/// Repository für die Tabelle Dokument inkl. Fristenübersicht, Suche und dem
+/// Workflow "als abgegeben markieren". GetAll, GetById und Delete kommen
+/// unverändert aus der Basisklasse Repository.
 /// </summary>
-public class DokumentDataAccess
+public class DokumentRepository : Repository<Dokument>, IDokumentRepository
 {
     // ---------- READ ----------
 
-    /// <summary>Alle Dokumente eines Fachs: offene zuerst, dann nach Frist, dann nach Titel.</summary>
     public List<Dokument> GetByFach(int fachId)
     {
         using var context = new AppDbContext();
@@ -25,11 +24,18 @@ public class DokumentDataAccess
             .ToList();
     }
 
-    /// <summary>Alle Dokumente aller Fächer - Grundlage für die Abgabe-Auswertung.</summary>
-    public List<Dokument> GetAll()
+    /// <summary>
+    /// Fristenübersicht. Include() lädt das zugehörige Fach in derselben Abfrage mit
+    /// (JOIN über die 1:N-Beziehung) - dadurch ist Dokument.Fach gefüllt.
+    /// </summary>
+    public List<Dokument> GetOffeneFristen()
     {
         using var context = new AppDbContext();
-        return context.Dokumente.ToList();
+        return context.Dokumente
+            .Include(d => d.Fach)
+            .Where(d => !d.Abgegeben && d.Frist != null && d.Frist != "")
+            .OrderBy(d => d.Frist)
+            .ToList();
     }
 
     /// <summary>
@@ -39,6 +45,7 @@ public class DokumentDataAccess
     /// </summary>
     public List<Dokument> Suche(string suchtext, DokumentFilter filter, DokumentSortierung sortierung)
     {
+        // "yyyy-MM-dd" sortiert als Text gleich wie als Datum, deshalb reicht ein Textvergleich.
         var heute = DateTime.Today.ToString("yyyy-MM-dd");
 
         using var context = new AppDbContext();
@@ -81,70 +88,18 @@ public class DokumentDataAccess
         return abfrage.ToList();
     }
 
-    public Dokument? GetById(int id)
+    // ---------- CREATE / UPDATE ----------
+
+    public override void Add(Dokument entity)
     {
-        using var context = new AppDbContext();
-        return context.Dokumente.Find(id);
+        Bereinige(entity);
+        base.Add(entity);
     }
 
-    /// <summary>
-    /// Fristenübersicht: alle offenen Dokumente mit gesetzter Frist, aufsteigend nach
-    /// Frist sortiert. Include() lädt das zugehörige Fach in derselben Abfrage mit
-    /// (JOIN über die 1:N-Beziehung) - dadurch ist Dokument.FachName gefüllt.
-    /// </summary>
-    public List<Dokument> GetOffeneFristen()
+    public override void Update(Dokument entity)
     {
-        using var context = new AppDbContext();
-        return context.Dokumente
-            .Include(d => d.Fach)
-            .Where(d => !d.Abgegeben && d.Frist != null && d.Frist != "")
-            .OrderBy(d => d.Frist)
-            .ToList();
-    }
-
-    /// <summary>Anzahl der überfälligen offenen Dokumente (Frist &lt; heute).</summary>
-    public int ZaehleUeberfaellig()
-    {
-        // "yyyy-MM-dd" sortiert als Text gleich wie als Datum, deshalb reicht ein Textvergleich.
-        var heute = DateTime.Today.ToString("yyyy-MM-dd");
-
-        using var context = new AppDbContext();
-        return context.Dokumente
-            .Count(d => !d.Abgegeben
-                        && d.Frist != null && d.Frist != ""
-                        && string.Compare(d.Frist, heute) < 0);
-    }
-
-    // ---------- CREATE ----------
-
-    public int Add(Dokument dokument)
-    {
-        Bereinige(dokument);
-
-        using var context = new AppDbContext();
-        context.Dokumente.Add(dokument);
-        context.SaveChanges();   // EF Core trägt die neue Id direkt in dokument.Id ein
-
-        return dokument.Id;
-    }
-
-    // ---------- UPDATE ----------
-
-    public void Update(Dokument dokument)
-    {
-        Bereinige(dokument);
-
-        using var context = new AppDbContext();
-        var vorhanden = context.Dokumente.Find(dokument.Id);
-        if (vorhanden == null) return;
-
-        vorhanden.Titel = dokument.Titel;
-        vorhanden.Typ = dokument.Typ;
-        vorhanden.Dateipfad = dokument.Dateipfad;
-        vorhanden.Frist = dokument.Frist;
-        vorhanden.Abgegeben = dokument.Abgegeben;
-        vorhanden.FachId = dokument.FachId;
-        context.SaveChanges();
+        Bereinige(entity);
+        base.Update(entity);
     }
 
     /// <summary>
@@ -158,18 +113,6 @@ public class DokumentDataAccess
         if (dokument == null) return;
 
         dokument.Abgegeben = abgegeben;
-        context.SaveChanges();
-    }
-
-    // ---------- DELETE ----------
-
-    public void Delete(int id)
-    {
-        using var context = new AppDbContext();
-        var dokument = context.Dokumente.Find(id);
-        if (dokument == null) return;
-
-        context.Dokumente.Remove(dokument);
         context.SaveChanges();
     }
 

@@ -1,25 +1,33 @@
 using System.Windows;
 using System.Windows.Controls;
 using System.Windows.Input;
-using SchulApp.Models;
+using SchulApp.Dtos;
 using SchulApp.Services;
 
 namespace SchulApp;
 
 /// <summary>
 /// Code-Behind: ausschliesslich UI-Logik und Aufrufe der Service-Schicht.
+/// Arbeitet nur mit DTOs - die Entity-Klassen kennt das Fenster nicht.
 /// Kein MVVM, kein INotifyPropertyChanged – nach jeder Änderung werden die
 /// betroffenen Listen neu aus der Datenbank geladen.
 /// </summary>
 public partial class MainWindow : Window
 {
-    private readonly StartService _startService = new();
-    private readonly FachService _fachService = new();
-    private readonly DokumentService _dokumentService = new();
+    private readonly StartService _startService;
+    private readonly FachService _fachService;
+    private readonly DokumentService _dokumentService;
+    private readonly AuswertungService _auswertungService;
 
-    public MainWindow()
+    public MainWindow(StartService startService, FachService fachService,
+        DokumentService dokumentService, AuswertungService auswertungService)
     {
         InitializeComponent();
+
+        _startService = startService;
+        _fachService = fachService;
+        _dokumentService = dokumentService;
+        _auswertungService = auswertungService;
     }
 
     // ==================== Start ====================
@@ -48,16 +56,16 @@ public partial class MainWindow : Window
     {
         var merkeId = auswaehlenId > 0
             ? auswaehlenId
-            : (LstFaecher.SelectedItem as Fach)?.Id ?? 0;
+            : (LstFaecher.SelectedItem as FachDto)?.Id ?? 0;
 
-        List<Fach> faecher = _fachService.GetAlle();
+        List<FachDto> faecher = _fachService.GetAlle();
 
         LstFaecher.ItemsSource = faecher;
         TxtFachAnzahl.Text = faecher.Count == 1 ? "1 Fach" : $"{faecher.Count} Fächer";
         TxtKeineFaecher.Visibility = faecher.Count == 0 ? Visibility.Visible : Visibility.Collapsed;
 
         // Vorherige Auswahl wiederherstellen, sonst das erste Fach wählen.
-        Fach? auswahl = faecher.FirstOrDefault(f => f.Id == merkeId) ?? faecher.FirstOrDefault();
+        FachDto? auswahl = faecher.FirstOrDefault(f => f.Id == merkeId) ?? faecher.FirstOrDefault();
         LstFaecher.SelectedItem = auswahl;
 
         if (auswahl == null)
@@ -66,7 +74,7 @@ public partial class MainWindow : Window
 
     private void LstFaecher_SelectionChanged(object sender, SelectionChangedEventArgs e)
     {
-        LadeDokumente(LstFaecher.SelectedItem as Fach);
+        LadeDokumente(LstFaecher.SelectedItem as FachDto);
     }
 
     private void BtnFachHinzufuegen_Click(object sender, RoutedEventArgs e)
@@ -98,7 +106,7 @@ public partial class MainWindow : Window
 
     private void BtnFachLoeschen_Click(object sender, RoutedEventArgs e)
     {
-        if (LstFaecher.SelectedItem is not Fach fach)
+        if (LstFaecher.SelectedItem is not FachDto fach)
         {
             Hinweis("Wähle links ein Fach aus.");
             return;
@@ -133,7 +141,7 @@ public partial class MainWindow : Window
 
     // ==================== Dokumente ====================
 
-    private void LadeDokumente(Fach? fach)
+    private void LadeDokumente(FachDto? fach)
     {
         if (fach == null)
         {
@@ -146,7 +154,7 @@ public partial class MainWindow : Window
             return;
         }
 
-        List<Dokument> dokumente = _dokumentService.GetByFach(fach.Id);
+        List<DokumentDto> dokumente = _dokumentService.GetByFach(fach.Id);
 
         GrdDokumente.ItemsSource = dokumente;
         DokEingabe.KannAblegen = true;
@@ -172,7 +180,7 @@ public partial class MainWindow : Window
     /// </summary>
     private void DokEingabe_Ablegen(object? sender, EventArgs e)
     {
-        if (LstFaecher.SelectedItem is not Fach fach)
+        if (LstFaecher.SelectedItem is not FachDto fach)
         {
             Hinweis("Wähle zuerst ein Fach aus.");
             return;
@@ -182,7 +190,7 @@ public partial class MainWindow : Window
 
         try
         {
-            Dokument dokument = _dokumentService.Hinzufuegen(
+            DokumentDto dokument = _dokumentService.Hinzufuegen(
                 titel,
                 DokEingabe.Typ,
                 DokEingabe.Dateipfad,
@@ -215,13 +223,13 @@ public partial class MainWindow : Window
     /// </summary>
     private void BtnAbgabeUmschalten_Click(object sender, RoutedEventArgs e)
     {
-        if ((sender as FrameworkElement)?.DataContext is not Dokument dokument) return;
+        if ((sender as FrameworkElement)?.DataContext is not DokumentDto dokument) return;
 
         try
         {
             bool neuerStatus = _dokumentService.AbgabeUmschalten(dokument);
 
-            LadeDokumente(LstFaecher.SelectedItem as Fach);
+            LadeFaecher();   // aktualisiert Dokumentenliste und den Offen-Zähler im Fach
             LadeFristen();
 
             Status(neuerStatus
@@ -236,7 +244,7 @@ public partial class MainWindow : Window
 
     private void BtnDokumentLoeschen_Click(object sender, RoutedEventArgs e)
     {
-        if ((sender as FrameworkElement)?.DataContext is not Dokument dokument) return;
+        if ((sender as FrameworkElement)?.DataContext is not DokumentDto dokument) return;
 
         if (MessageBox.Show(this, $"\"{dokument.Titel}\" löschen?", "Dokument löschen",
                 MessageBoxButton.YesNo, MessageBoxImage.Question) != MessageBoxResult.Yes)
@@ -245,7 +253,7 @@ public partial class MainWindow : Window
         try
         {
             _dokumentService.Loeschen(dokument.Id);
-            LadeFaecher((LstFaecher.SelectedItem as Fach)?.Id ?? 0);
+            LadeFaecher((LstFaecher.SelectedItem as FachDto)?.Id ?? 0);
             LadeFristen();
             Status($"\"{dokument.Titel}\" gelöscht.");
         }
@@ -259,7 +267,7 @@ public partial class MainWindow : Window
 
     private void LadeFristen()
     {
-        List<Dokument> fristen = _dokumentService.GetOffeneFristen();
+        List<DokumentDto> fristen = _dokumentService.GetOffeneFristen();
 
         LstFristen.ItemsSource = fristen;
         TxtFristenAnzahl.Text = fristen.Count == 1 ? "1 offen" : $"{fristen.Count} offen";
@@ -273,12 +281,12 @@ public partial class MainWindow : Window
     /// <summary>Abgeben direkt aus der Fristenliste – gleicher Workflow wie in der Tabelle.</summary>
     private void BtnFristAbgeben_Click(object sender, RoutedEventArgs e)
     {
-        if ((sender as FrameworkElement)?.DataContext is not Dokument dokument) return;
+        if ((sender as FrameworkElement)?.DataContext is not DokumentDto dokument) return;
 
         try
         {
             _dokumentService.MarkiereAlsAbgegeben(dokument.Id);
-            LadeDokumente(LstFaecher.SelectedItem as Fach);
+            LadeFaecher();   // aktualisiert Dokumentenliste und den Offen-Zähler im Fach
             LadeFristen();
             Status($"\"{dokument.Titel}\" ist abgegeben.");
         }
@@ -316,7 +324,7 @@ public partial class MainWindow : Window
 
     private void MnuNeuesDokument_Click(object sender, RoutedEventArgs e)
     {
-        if (LstFaecher.SelectedItem is not Fach)
+        if (LstFaecher.SelectedItem is not FachDto)
         {
             Hinweis("Wähle zuerst ein Fach aus.");
             return;
@@ -328,13 +336,13 @@ public partial class MainWindow : Window
     /// <summary>Öffnet die Gesamtübersicht aller Dokumente mit Suche, Filter und Sortierung.</summary>
     private void MnuAlleDokumente_Click(object sender, RoutedEventArgs e)
     {
-        new AlleDokumenteWindow { Owner = this }.ShowDialog();
+        new AlleDokumenteWindow(_dokumentService) { Owner = this }.ShowDialog();
     }
 
     /// <summary>Öffnet die Abgabe-Auswertung (AuswertungService) als Dialog.</summary>
     private void MnuAuswertung_Click(object sender, RoutedEventArgs e)
     {
-        new AuswertungWindow { Owner = this }.ShowDialog();
+        new AuswertungWindow(_auswertungService) { Owner = this }.ShowDialog();
     }
 
     private void MnuUeber_Click(object sender, RoutedEventArgs e)

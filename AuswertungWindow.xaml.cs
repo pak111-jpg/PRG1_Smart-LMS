@@ -1,5 +1,5 @@
 using System.Windows;
-using SchulApp.Models;
+using SchulApp.Dtos;
 using SchulApp.Services;
 
 namespace SchulApp;
@@ -10,11 +10,12 @@ namespace SchulApp;
 /// </summary>
 public partial class AuswertungWindow : Window
 {
-    private readonly AuswertungService _auswertungService = new();
+    private readonly AuswertungService _auswertungService;
 
-    public AuswertungWindow()
+    public AuswertungWindow(AuswertungService auswertungService)
     {
         InitializeComponent();
+        _auswertungService = auswertungService;
     }
 
     private void Window_Loaded(object sender, RoutedEventArgs e)
@@ -23,7 +24,7 @@ public partial class AuswertungWindow : Window
         {
             GrdAuswertung.ItemsSource = _auswertungService.GetAuswertungProFach();
 
-            FachAuswertung gesamt = _auswertungService.GetGesamtauswertung();
+            FachAuswertungDto gesamt = _auswertungService.GetGesamtauswertung();
             TxtGesamt.Text = gesamt.Gesamt == 0
                 ? "Noch keine Dokumente abgelegt."
                 : $"{gesamt.FachName}: {gesamt.Abgegeben} von {gesamt.Gesamt} abgegeben ({gesamt.ProzentAnzeige})"

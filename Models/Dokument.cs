@@ -4,7 +4,8 @@ namespace SchulApp.Models;
 
 /// <summary>
 /// Entität 2 (N-Seite). Frist wird als TEXT im Format "yyyy-MM-dd" gespeichert,
-/// dadurch funktioniert die Sortierung direkt per SQL (ORDER BY Frist ASC).
+/// dadurch funktioniert die Sortierung direkt in der Datenbank.
+/// Texte für die Anzeige liegen im DokumentDto, nicht hier.
 /// </summary>
 public class Dokument
 {
@@ -19,52 +20,17 @@ public class Dokument
     /// <summary>Navigation Property zur 1-Seite. Nur gefüllt, wenn mit Include() geladen.</summary>
     public Fach? Fach { get; set; }
 
-    /// <summary>
-    /// Name des Fachs - nur gefüllt, wenn das Fach mit Include() mitgeladen wurde
-    /// (Fristenübersicht). Reine Anzeige, keine Tabellenspalte.
-    /// </summary>
-    public string FachName => Fach?.Name ?? string.Empty;
+    // ---------- Fachliche Regeln (keine Tabellenspalten) ----------
 
-    // ---------- Nur-Lesen-Eigenschaften für die Anzeige ----------
-
+    /// <summary>Die Frist als Datum - null, wenn keine (gültige) Frist gesetzt ist.</summary>
     public DateTime? FristDatum =>
         DateTime.TryParse(Frist, CultureInfo.InvariantCulture, DateTimeStyles.None, out var d)
             ? d.Date
             : null;
-
-    public string FristAnzeige =>
-        FristDatum.HasValue ? FristDatum.Value.ToString("dd.MM.yyyy") : "–";
 
     public bool HatFrist => FristDatum.HasValue;
 
     /// <summary>Frist liegt in der Vergangenheit und das Dokument ist noch offen.</summary>
     public bool IstUeberfaellig =>
         !Abgegeben && FristDatum.HasValue && FristDatum.Value < DateTime.Today;
-
-    public string StatusZeichen => Abgegeben ? "✓" : "○";
-
-    public string StatusText => Abgegeben ? "Abgegeben" : "Offen";
-
-    public string DateiAnzeige =>
-        string.IsNullOrWhiteSpace(Dateipfad) ? "–" : System.IO.Path.GetFileName(Dateipfad);
-
-    /// <summary>Restzeit im Klartext, z. B. "in 3 Tagen" oder "2 Tage überfällig".</summary>
-    public string RestText
-    {
-        get
-        {
-            if (!FristDatum.HasValue) return string.Empty;
-            var tage = (FristDatum.Value - DateTime.Today).Days;
-            return tage switch
-            {
-                < -1 => $"{-tage} Tage überfällig",
-                -1 => "1 Tag überfällig",
-                0 => "heute fällig",
-                1 => "morgen fällig",
-                _ => $"in {tage} Tagen"
-            };
-        }
-    }
-
-    public override string ToString() => Titel;
 }
