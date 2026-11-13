@@ -25,6 +25,13 @@ public class DokumentDataAccess
             .ToList();
     }
 
+    /// <summary>Alle Dokumente aller Fächer - Grundlage für die Abgabe-Auswertung.</summary>
+    public List<Dokument> GetAll()
+    {
+        using var context = new AppDbContext();
+        return context.Dokumente.ToList();
+    }
+
     public Dokument? GetById(int id)
     {
         using var context = new AppDbContext();
